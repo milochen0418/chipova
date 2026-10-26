@@ -27,3 +27,6 @@ testcases/**/output/
 
 # CI output (scripts/ci.sh)
 ci-output/
+
+# Videos (docs/videos/*.mp4, their sources, recordings and models): too big for git
+docs/videos/
