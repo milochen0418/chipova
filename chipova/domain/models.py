@@ -130,10 +130,18 @@ class ProjectSettings(_Model):
     clock_port: str = "clk"
     clock_period_ns: float = 10.0
     pdk: str = "skywater130"  # a target of the PDK registry
+    fpga_family: str = "ice40"  # ice40 | ecp5 | gowin: which Build FPGA flow
     fpga_device: str = "up5k"
     fpga_package: str = "sg48"
-    pcf: str = ""
+    fpga_pins: str = ""  # the pin file (.pcf, .lpf or .cst)
+    pcf: str = ""  # the pin file's older name (iCE40 projects)
     spice: str = ""  # AMS: the top SPICE deck
+    cace: str = ""  # AMS: the CACE datasheet (.yaml): the PVT corners
+    schematic_tb: str = ""  # AMS: the Xschem testbench (.sch) to netlist and simulate
+
+    @property
+    def clock_mhz(self) -> float:
+        return round(1000.0 / self.clock_period_ns, 3) if self.clock_period_ns > 0 else 0.0
 
 
 class Project(_Model):

@@ -13,7 +13,7 @@ import reflex as rx
 from chipova import ids
 from chipova.domain.models import Run, RunStatus
 from chipova.jobs import engine, flows
-from chipova.services import artifacts, projects
+from chipova.services import artifacts, boards, projects
 from chipova.states.ide import IdeState
 from chipova.states.room import note, push_later, run_summary
 from chipova.states.ui_state import UiState
@@ -62,6 +62,29 @@ class ArtifactRow:
 class Fact:
     label: str = ""
     value: str = ""
+
+
+@dataclasses.dataclass
+class BoardJobRow:
+    """A board asked to be programmed with this run's bitstream (chipova.services.boards)."""
+
+    id: str = ""
+    board: str = ""
+    helper: str = ""
+    status: str = ""
+    by: str = ""
+    at: float = 0.0
+    log: str = ""
+
+
+def board_job_rows(run_id: str) -> list[BoardJobRow]:
+    names: dict[str, str] = {}
+    rows = []
+    for j in boards.jobs_of_run(run_id):
+        if j["helper_id"] not in names:
+            names[j["helper_id"]] = (boards.helper(j["helper_id"]) or {}).get("name", "")
+        rows.append(BoardJobRow(j["id"], j["board"], names[j["helper_id"]], j["status"], j["requested_by_name"], j["updated_at"], (j["log"] or "")[-4000:]))
+    return rows
 
 
 @dataclasses.dataclass
@@ -153,8 +176,18 @@ def facts(run: Run) -> list[Fact]:
     for key, label in (s.get("_labels") or {}).items():
         if s.get(key) not in (None, ""):
             out.append(Fact(label, _num(s[key])))
+    for row in s.get("specs") or []:
+        limits = " … ".join(str(row.get(k)) for k in ("min_limit", "max_limit"))
+        out.append(Fact(str(row.get("display")), f"{row.get('status')}: min {row.get('min_value')}, typical {row.get('typ_value')}, max {row.get('max_value')} (limits {limits})"))
     for rule, n in list((s.get("rules") or {}).items())[:12]:
         out.append(Fact(f"Rule {rule}", f"{n} violation{'s' if n != 1 else ''}"))
+    for corner, v in ((s.get("checks") or {}).get("sta") or {}).get("corners", {}).items():
+        out.append(Fact(f"STA {corner}", f"setup slack {_num(v.get('setup_ws_ns'))} ns, hold slack {_num(v.get('hold_ws_ns'))} ns"))
+    for corner, v in ((s.get("checks") or {}).get("power_ir") or {}).get("corners", {}).items():
+        out.append(Fact(f"Power/IR {corner}", f"{_num(v.get('power_mw'))} mW, IR drop {_num(v.get('ir_drop_total_mv'))} mV"))
+    for layer, v in list(((s.get("density") or {}).get("layers") or {}).items())[:12]:
+        limits = ", ".join(f"{k} {v[f'{k}_pct']:g} %" for k in ("min", "max") if v.get(f"{k}_pct") is not None)
+        out.append(Fact(f"Density {layer}", f"{_num(v.get('density_pct'))} %" + (f" ({limits})" if limits else "")))
     return out
 
 
@@ -188,6 +221,7 @@ class RunState(rx.State):
     wave_url: str = ""  # signed path of the run's waveform data
     picture: str = ""  # signed path of a picture to show (schematic)
     manifest: str = ""
+    board_jobs: list[BoardJobRow] = []
     _following: bool = False
 
     async def _user(self) -> str:
@@ -246,7 +280,7 @@ class RunState(rx.State):
             rows.append(ArtifactRow(id=a.id, name=a.name, kind=a.kind, size=human_size(a.size), sha=a.sha256[:12], sha_full=a.sha256, href=href, inline=a.name.endswith((".svg", ".png"))))
             if a.kind == "vcd" and not wave:
                 wave = artifacts.WAVE_PATH.format(artifact_id=a.id) + "?" + artifacts.query(a.id, user)
-            if a.kind == "image" and not picture:
+            if a.kind == "schematic" or (a.kind == "image" and not picture):  # the run's own schematic first
                 picture = href + "&inline=1"
         self.artifacts = rows
         self.wave_url = wave
@@ -259,11 +293,13 @@ class RunState(rx.State):
                     charts.append(c)
         self.charts = charts[:6]
         self.manifest = f"/_chipova/manifest/{run.id}?" + artifacts.query(run.id, user) if run.status.finished else ""
+        self.board_jobs = board_job_rows(run.id) if run.flow_id in flows.FPGA_FLOWS else []
 
     def _clear(self) -> None:
         self.selected = ""
         self.steps, self.problems, self.log, self.artifacts, self.facts, self.charts = [], [], [], [], [], []
         self.problems_json, self.wave_url, self.picture, self.error = "[]", "", "", ""
+        self.board_jobs = []
 
     @rx.event
     async def select(self, run_id: str):

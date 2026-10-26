@@ -3,13 +3,14 @@
     viewer    read files, runs and reports; download artifacts; comment
     reviewer  a viewer who also approves: reviews of revisions, waivers, releases
     editor    a viewer who also works: edits files, freezes snapshots, starts and stops runs,
-              accepts or rejects AI proposals, approves runs an AI asked for, asks for a release
+              accepts or rejects AI proposals, approves runs an AI asked for, asks for a release,
+              programs a board through their own board helper
     owner     everything, also the project's settings, members and deleting it
 
 Someone can hold several roles at once (a reviewer member of a project anyone may edit is an
 editor too): what they may do is everything any of their roles may. An approver is never the one
 who asked (see :mod:`chipova.services.releases`), and an AI agent acts with the roles of the
-person it works for, but never edits files directly, approves, waives or releases.
+person it works for, but never edits files directly, approves, waives, releases or programs a board.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ RUN = "run"
 DECIDE_PROPOSAL = "decide_proposal"
 APPROVE_RUN = "approve_run"
 REQUEST_RELEASE = "request_release"
+PROGRAM_BOARD = "program_board"
 REVIEW = "review"
 APPROVE_WAIVER = "approve_waiver"
 APPROVE_RELEASE = "approve_release"
@@ -35,7 +37,7 @@ MANAGE = "manage"
 
 _VIEWER = {VIEW, COMMENT, DOWNLOAD}
 _REVIEWER = _VIEWER | {REVIEW, APPROVE_WAIVER, APPROVE_RELEASE}
-_EDITOR = _VIEWER | {EDIT, SNAPSHOT, RUN, DECIDE_PROPOSAL, APPROVE_RUN, REQUEST_RELEASE}
+_EDITOR = _VIEWER | {EDIT, SNAPSHOT, RUN, DECIDE_PROPOSAL, APPROVE_RUN, REQUEST_RELEASE, PROGRAM_BOARD}
 _OWNER = _REVIEWER | _EDITOR | {MANAGE}
 
 ALLOWED: dict[Role, set[str]] = {
@@ -47,7 +49,7 @@ ALLOWED: dict[Role, set[str]] = {
 
 # What an AI agent may never do, whatever the roles of the person it works for: it proposes
 # changes instead of editing, and people decide.
-NEVER_FOR_AGENTS = {EDIT, DECIDE_PROPOSAL, APPROVE_RUN, REVIEW, APPROVE_WAIVER, APPROVE_RELEASE, MANAGE}
+NEVER_FOR_AGENTS = {EDIT, DECIDE_PROPOSAL, APPROVE_RUN, REVIEW, APPROVE_WAIVER, APPROVE_RELEASE, MANAGE, PROGRAM_BOARD}
 
 _RANK = {Role.VIEWER: 0, Role.REVIEWER: 1, Role.EDITOR: 2, Role.OWNER: 3}
 

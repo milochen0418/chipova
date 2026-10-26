@@ -21,11 +21,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# Loaded by the browser at run time (assets/chipova/collab.js, @monaco-editor/loader's default).
+# In the browser but not an npm package of the frontend (monaco-editor, yjs and y-websocket are:
+# Chipova serves Monaco's files itself and bundles Yjs, components/offline.py).
 BROWSER = [
-    ("monaco-editor", "0.55.1", "MIT", "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs"),
-    ("yjs", "13.6.18", "MIT", "https://esm.sh/yjs@13.6.18"),
-    ("y-websocket", "2.0.4", "MIT", "https://esm.sh/y-websocket@2.0.4"),
     ("y-monaco", "0.1.6", "MIT", "vendored in assets/chipova/collab.js"),
 ]
 

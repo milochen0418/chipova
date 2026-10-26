@@ -1,0 +1,6 @@
+{
+  "title": "Blinky (FPGA, Tang Nano 9K Gowin)",
+  "kind": "fpga",
+  "description": "Six LEDs counting and a button that lights them all, for the Gowin GW1NR-9 on a Sipeed Tang Nano 9K: simulate, then place and route it to a bitstream.",
+  "order": 6
+}

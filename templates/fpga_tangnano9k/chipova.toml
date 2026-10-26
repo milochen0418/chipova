@@ -1,0 +1,26 @@
+# Chipova project settings: what the runs use. Change them in the project's Settings,
+# or here (every snapshot keeps this file with the sources).
+
+[design]
+top = "blinky"
+rtl = ["rtl/blinky.v"]
+sdc = ""
+clock_port = "clk"
+clock_period_ns = 37.037
+
+[sim]
+testbench = "tb_blinky"
+sources = ["tb/tb_blinky.v"]
+
+[asic]
+pdk = "skywater130"
+
+[fpga]
+family = "gowin"
+device = "GW1NR-LV9QN88PC6/I5"
+package = ""
+pins = "constraints/tangnano9k.cst"
+pcf = ""
+
+[ams]
+spice = ""

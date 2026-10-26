@@ -2,8 +2,8 @@
  * Chipova: co-editing the open file (one Yjs document per file), adapted from Codoc in CAD's
  * yjs_collab.js (itself from codoc_in_md).
  *
- *   1. yjs + y-websocket come from esm.sh; MonacoBinding is vendored (y-monaco@0.1.6, MIT ©
- *      Kevin Jahns) so it uses the page's `window.monaco`.
+ *   1. yjs + y-websocket are bundled into the page (window.__chipYjs, no CDN); MonacoBinding is
+ *      vendored (y-monaco@0.1.6, MIT © Kevin Jahns) so it uses the page's `window.monaco`.
  *   2. The editor panel (#editor-panel) says which document it shows (data-chip-doc =
  *      <project>-<file>), the ticket that lets this person in (data-chip-ticket), whether they
  *      may only read (data-chip-readonly), who they are for their cursor (data-chip-user-*) and
@@ -663,14 +663,11 @@
 
   const ensureModules = async () => {
     if (Y) return;
-    const CDN = "https://esm.sh";
-    const YJS_VER = "yjs@13.6.18";
-    const [yMod, wsMod] = await Promise.all([
-      import(`${CDN}/${YJS_VER}`),
-      import(`${CDN}/y-websocket@2.0.4?deps=${YJS_VER}`),
-    ]);
-    Y = yMod;
-    WsProvider = wsMod.WebsocketProvider;
+    // Bundled into the project page (chipova/components/offline.py), which may still be loading.
+    for (let i = 0; i < 200 && !window.__chipYjs; i++) await new Promise((r) => setTimeout(r, 50));
+    if (!window.__chipYjs) throw new Error("the page's Yjs didn't load");
+    Y = window.__chipYjs.Y;
+    WsProvider = window.__chipYjs.WebsocketProvider;
   };
 
   const setup = async (docId) => {

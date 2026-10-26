@@ -117,3 +117,42 @@ async def test_a_failing_analog_run_keeps_its_log_and_nothing_says_ready(queue):
     assert not passed and missing
     with pytest.raises((projects.Conflict, ValueError, projects.Denied)):
         releases.mark_foundry_ready(r.id, ALICE, "This is my statement that it was all checked by hand.")
+
+
+@pytest.mark.docker
+@needs_docker
+async def test_ecp5_and_gowin_boards_simulate_and_build_bitstreams(queue):
+    """The ULX3S (Lattice ECP5) and Tang Nano 9K (Gowin) templates: their testbenches pass, and
+    each builds to a bitstream with its timing, which the FPGA timing check reads."""
+    for template, flow, bitstream in (("fpga_ulx3s", "fpga_ecp5", "fpga/blinky.bit"), ("fpga_tangnano9k", "fpga_gowin", "fpga/blinky.fs")):
+        p = await projects.create(template, template, ALICE)
+        sim = await _wait((await engine.submit(p.id, "rtl_sim", ALICE)).id)
+        assert sim.status == RunStatus.SUCCEEDED and sim.summary["pass_lines"] == 1, (template, sim.error, sim.summary)
+        build = await _wait((await engine.submit(p.id, flow, ALICE)).id)
+        assert build.status == RunStatus.SUCCEEDED, (template, build.error)
+        names = {a.name: a for a in engine.artifacts_of(build.id)}
+        assert bitstream in names and names[bitstream].size > 10000, (template, sorted(names))
+        fmax = build.summary.get("fmax") or {}
+        assert fmax and all(v["achieved_mhz"] > v["constraint_mhz"] for v in fmax.values()), (template, fmax)
+        checks = {c.category: c for c in signoff.checklist(p.id, build.revision_id)}
+        assert checks["fpga_timing"].status == SignoffStatus.PASS and checks["fpga_timing"].run_id == build.id, checks["fpga_timing"]
+
+
+@pytest.mark.docker
+@needs_docker
+async def test_the_package_plan_is_checked_against_the_design(queue):
+    """The Heartbeat's QFN-16 plan maps its three ports and has power and ground: PASS, with a
+    bond diagram. Without the `out` pin, the check says which port is on no pin: FAIL."""
+    p = await projects.create("Beat", "digital_heartbeat", ALICE)
+    run = await _wait((await engine.submit(p.id, "package_check", ALICE)).id)
+    assert run.status == RunStatus.SUCCEEDED and run.summary["ok"] and run.summary["mapped"] == run.summary["ports"] == 3, (run.error, run.summary)
+    assert {a.name for a in engine.artifacts_of(run.id)} >= {"package/bond.svg", "package/report.json"}
+    checks = {c.category: c for c in signoff.checklist(p.id, run.revision_id)}
+    assert checks["package"].status == SignoffStatus.PASS and checks["package"].required
+    pins = projects.file_by_path(p.id, "package/pins.csv")
+    projects.write(p.id, pins.id, projects.read(p.id, pins.id).replace("9,out,output,OUT", "9,,nc,"), ALICE)
+    rev = await revisions.freeze(p.id, "no out pin", ALICE)
+    broken = await _wait((await engine.submit(p.id, "package_check", ALICE)).id)
+    assert broken.status == RunStatus.FAILED and broken.revision_id == rev.id
+    check = {c.category: c for c in signoff.checklist(p.id, rev.id)}["package"]
+    assert check.status == SignoffStatus.FAIL and "port out is on no pin" in (broken.error + " ".join(broken.summary.get("plan_problems", []))), (broken.error, broken.summary)

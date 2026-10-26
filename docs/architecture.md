@@ -16,6 +16,9 @@ modules of **one Reflex backend process**, plus **one Docker container per EDA r
   │  pages + states (chipova/states, chipova/components)        product shell, rooms, roles          │
   │  ProjectRoom (Reflex SharedState)                           presence, runs, proposals, activity  │
   │  co-editing relay  /_chipova/yjs/<project>-<file>          services/collab.py (pycrdt)           │
+  │  Monaco's files  /_chipova/monaco/<version>/…               components/offline.py                 │
+  │  Xschem desktops  /_chipova/desktop/<id>/<ticket>/…         services/desktops.py (noVNC proxy)    │
+  │  board helpers, lab records                                 services/boards.py, services/lab.py   │
   │  REST API  /api/…  (+ SSE)                                  services/api.py                       │
   │  artifacts, waveforms, layouts  /_chipova/a|wave|layout/…   services/artifacts.py                │
   │  AI tools  /_ddns_tool/manifest|call                        agents/ai_tools.py (reflex_ddns_auth) │
@@ -30,7 +33,9 @@ modules of **one Reflex backend process**, plus **one Docker container per EDA r
                   ▼                                                               ▼
    chipova.db (SQLite, WAL)          projects/<id>/repo.git (snapshots)     one container per run
    projects/<id>/work, docs (live)   projects/<id>/runs/<run>/ (outputs)    chipova/eda-base:1
-   secret (signing key)                                                      chipova/eda-osic:2026.10-1
+   secret (signing key)                                                      chipova/eda-osic:2026.10-3
+                                                                             + one Xschem desktop per
+                                                                               person who opens one
 ```
 
 | Blueprint part (§3) | In Chipova |
@@ -40,8 +45,10 @@ modules of **one Reflex backend process**, plus **one Docker container per EDA r
 | Collaboration Service (Yjs; Hocuspocus or similar) | `services/collab.py`: a y-websocket–compatible relay in the backend, `assets/chipova/collab.js` in the browser |
 | Versioned storage (Git + DB + object store) | bare git per project, SQLite, run folders on disk (no object store) |
 | EDA Job Orchestrator (queue, containers) | `jobs/engine.py` (SQLite queue + asyncio scheduler) and `jobs/docker_runner.py` |
-| Digital pipeline (SiliconCompiler, Yosys, OpenROAD, KLayout, Netgen) | `jobs/flows.py` (lint, sim, synth, FPGA), `jobs/flows_asic.py` (SiliconCompiler ASIC, DRC, LVS) |
-| AMS pipeline (IIC-OSIC-TOOLS, Xschem, ngspice, CACE) | ngspice only (`ams_ngspice`); the IIC-OSIC-TOOLS image is installed, Xschem/CACE are not wired |
+| Digital pipeline (SiliconCompiler, Yosys, OpenROAD, KLayout, Netgen) | `jobs/flows.py` (lint, sim, synth, FPGA, package), `jobs/flows_asic.py` (SiliconCompiler ASIC, DRC, LVS, OpenRCX/OpenSTA/PDNSim/antenna) |
+| AMS pipeline (IIC-OSIC-TOOLS, Xschem, ngspice, CACE) | `jobs/flows.py`: `ams_ngspice`, `ams_xschem` (Xschem netlist + ngspice), `ams_cace` (CACE corners); schematics edited in a person's Xschem desktop (`services/desktops.py`) |
+| Hardware worker (board programming) | `services/boards.py` (jobs, helpers) and `scripts/board_helper.py` on the computer with the board |
+| Post-silicon (OpenHTF) | `services/lab.py`: OpenHTF JSON records against `lab/spec.csv` |
 | Artifacts + evidence | `runs/<run>/out`, `artifacts` table (SHA-256), `manifest.json` |
 | Signoff Center / Release Gate | `services/signoff.py`, `services/releases.py` |
 
@@ -165,10 +172,23 @@ that can run it, parameters with kinds and defaults from `chipova.toml`, time li
 | `rtl_sim` | eda-base or osic | `iverilog` + `vvp` (or Verilator `--binary`), VCD kept; the testbench's `PASS`/`FAIL` lines decide |
 | `synth_yosys` | eda-base or osic | Yosys script (stat, netlist), RTL schematic (Yosys `show` → Graphviz SVG) |
 | `fpga_ice40` | eda-base or osic | `synth_ice40` → `nextpnr-ice40` (pin file, target clock) → `icepack` |
+| `fpga_ecp5` | eda-base | `synth_ecp5` → `nextpnr-ecp5` (`.lpf`, `--report`) → `ecppack --compress` |
+| `fpga_gowin` | eda-base | `synth_gowin` → `nextpnr-gowin` (`.cst`) → apicula's `gowin_pack` |
+| `package_check` | eda-base or osic | Yosys writes the top's ports → `package_check.py` checks `package/pins.csv` against them and draws `bond.svg` |
 | `ams_ngspice` | eda-base or osic | `ngspice -b`: `.meas` results, `wrdata` tables as charts |
+| `ams_xschem` | osic | `xschem -n -s -r -x -q` netlists the testbench (the project's `xschemrc`), `netlist_check.py`, the PDK's `.spiceinit`, `ngspice -b`, pictures (`pictures.tcl` under `xvfb-run`) |
+| `ams_cace` | osic | a writable copy of the snapshot, `cace <datasheet> --source schematic -j 3 --parallel-parameters 1`, `cace_results.py` (JSON + CSV, which conditions broke a limit), pictures |
 | `asic_sc` | osic | `sc_flow.py`: SiliconCompiler `Design` + `ASIC` + the PDK's target, 23 flowgraph nodes, then the full GDS (`gds_merge_cells.py`) and its picture |
-| `signoff_drc` | osic | KLayout `sky130A_mr.drc` (results counted from the `.lyrdb`) and Magic DRC |
-| `signoff_lvs` | osic | Magic extraction → Netgen against the gate-level netlist (`add_bulk_pins.py`) |
+| `signoff_drc` | osic | by the layout's PDK: SKY130 KLayout `sky130A_mr.drc` + Magic; IHP `run_drc.py` main rules + Magic + density; GF180 `gf180mcu.drc` variant C + density (results counted from the `.lyrdb`; sub-cell markers moved to the top cell) |
+| `signoff_lvs` | osic | SKY130 Magic → Netgen (`add_bulk_pins.py`); IHP `vg2spice.py` → IHP's `run_lvs.py --run_mode=deep`; GF180 `vg2spice.py` (body pins tied) → Magic → Netgen |
+| `fullchip_ihp` | osic | `cp -a` the template baked in the image to `/work/tmp/tpl`, `chip_overlay.py` (the snapshot's sources over it), `make clean-all`, then the template's targets with `needs`: bondpad, logos, counter (LibreLane, PEX, sims), inverter (KLayout and Magic verify, views, CACE), chip (`librelane-nodrc`), copy, Magic DRC of the chip, cocotb; `chip_collect.py` keeps only what this run wrote (4 CPUs pinned, 4 GB) |
+| `signoff_openroad` | osic | `pex.sh` (OpenRCX per RC corner), `sta.sh` (OpenSTA, every corner with its SPEF), `power_ir.sh` (report_power + PDNSim), `antenna.sh` (check_antennas); corners and files per PDK in `pdk_env.sh` |
+
+The step runner (`jobs/container/runner.py`, copied into each container) starts every step in its
+own process group, so a time limit stops what the step started too; a step with `needs` runs when
+those steps succeeded, whatever else failed; a step the memory limit killed is said to be so.
+`Limits.pin_cpus` pins a run to as many CPUs as it may use, for tools that start one process per
+CPU they see.
 
 ### Tool profiles
 
@@ -181,9 +201,10 @@ Build ASIC runs offline.
 
 ### PDKs (the PDKProvider)
 
-`jobs/pdks.py`: `skywater130` (flow, DRC and LVS decks, layer colours; marked experimental
-preview), `ihp130` (flow, layer colours; no DRC/LVS here), `gf180` (listed, not set up). Nothing
-outside this registry names a PDK.
+`jobs/pdks.py`: `skywater130` (marked experimental preview), `ihp130` and `gf180`, each with its
+SiliconCompiler target, layer colours, folder under `/foss/pdks`, and the DRC and LVS it gets here
+(the IIC-OSIC image bakes SiliconCompiler's GF180 data in, so all three build offline). The
+signoff scripts' corners and files are in `jobs/container/asic/pdk_env.sh`. Nothing else names a PDK.
 
 ## 6. Live updates
 
@@ -203,8 +224,10 @@ runs **of that snapshot** (its own or, for layout checks, those checking a Build
 the waivers of that snapshot, and returns one of NOT_CONFIGURED, NOT_RUN, RUNNING, PASS, FAIL,
 WAIVED, BLOCKED with its evidence (run id, deck, numbers) or why. Which checks are required depends
 on the project's kind. Resolvers are registered per check (the VerificationProvider): lint and
-simulation in `signoff.py`, FPGA timing from `fpga_ice40`, DRC, LVS, STA, PEX, power, antenna in
-`flows_asic.register()`; AMS corners is BLOCKED (no CACE flow), full chip NOT_CONFIGURED.
+simulation, FPGA timing (the latest of `fpga_ice40`, `fpga_ecp5`, `fpga_gowin`), AMS corners (an
+`ams_cace` run whose CACE verdict is PASS) and package & pinout in `signoff.py`; DRC, LVS, and STA,
+PEX, power and antenna (each from its own part of a `signoff_openroad` run of the snapshot's
+layout) in `flows_asic.register()`.
 
 A waiver (`waivers` table) has the check, the rule, the reason, the snapshot, who asked and who
 decided; an approved waiver makes the check WAIVED, never PASS. A release (`releases` table) goes
@@ -239,12 +262,35 @@ service they call), with the agent's name; the Agents page shows the project's.
   (DRC results from the `.lyrdb`), notes, a ruler and shared views. The page says it is a picture,
   not a DRC or LVS result.
 
-## 10. On disk (`CHIPOVA_HOME`)
+## 10. Outside the runs
+
+- **Monaco and Yjs offline**: `components/offline.py` adds `monaco-editor` and `y-websocket` to the
+  app's npm packages, serves Monaco's AMD files from `/_chipova/monaco/<version>/` (the editor's
+  loader is pointed there) and bundles Yjs into the page (`window.__chipYjs` for `collab.js`).
+  Nothing on a project page loads from another host (e2e:`offline_lan`).
+- **Xschem desktops** (`services/desktops.py`): one container of the IIC-OSIC image per person and
+  project (user 1000, capabilities dropped, 2 CPUs, 2 GB, its own network), with a copy of the
+  project's files in `/foss/designs/<project>` and the image's own noVNC. The page shows
+  `/_chipova/desktop/<id>/<ticket>/vnc.html` in a frame: the backend proxies noVNC's files and
+  bridges its WebSocket to the desktop's VNC port, after checking the ticket (HMAC, the person,
+  their access). **Save** reads the desktop's text files back and writes the changed ones into the
+  co-edited documents (a file that also changed in the project meanwhile is left alone and named);
+  an idle desktop is removed after 20 minutes, and the backend adopts running ones when it restarts.
+- **Board helpers** (`services/boards.py`, `scripts/board_helper.py`): a helper on the computer with
+  the board registers with a token, long-polls for jobs, downloads the bitstream through a signed
+  link, checks its SHA-256, runs `openFPGALoader -b <board>` and reports; programming needs the
+  PROGRAM_BOARD permission, which agents never have.
+- **The lab** (`services/lab.py`): OpenHTF JSON records (one per test run) are kept per project and
+  compared with `lab/spec.csv` and the design's own numbers.
+- **Phones**: below 768 px the workspace renders `components/phone.py` instead of the panes (the
+  width is read once when the page opens and again on resize).
+
+## 11. On disk (`CHIPOVA_HOME`)
 
 ```
 chipova.db                         projects, members, files, revisions, runs, run_steps, artifacts,
                                    agent_actions, reviews, comments, waivers, releases, audit,
-                                   access_requests, profiles
+                                   access_requests, profiles, lab_results, board_helpers, board_jobs
 secret                             this installation's signing key (tickets, links, API tokens)
 projects/<project>/
   repo.git/                        snapshots (bare git)

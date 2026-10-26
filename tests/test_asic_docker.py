@@ -13,7 +13,7 @@ from tests.conftest import ALICE
 
 needs_osic = pytest.mark.skipif(
     not docker_runner.available() or profiles.installed(profiles.get("iic-osic-2026.10")) is None,
-    reason="needs Docker and the chipova/eda-osic:2026.10-1 image",
+    reason="needs Docker and the chipova/eda-osic:2026.10-3 image",
 )
 
 
@@ -47,14 +47,26 @@ async def test_heartbeat_to_gds_then_drc_and_lvs():
         assert "open_pdks=" in pdk_data and "lambdapdk-v" in pdk_data, pdk_data
         rev = revisions.get(p.id, asic.revision_id)
         checks = {c.category: c for c in signoff.checklist(p.id, rev.id)}
-        assert checks["sta"].status == SignoffStatus.PASS and checks["drc"].status == SignoffStatus.NOT_RUN
+        # The build's own timing is one corner with estimated parasitics: STA waits for the signoff run.
+        assert checks["sta"].status == SignoffStatus.NOT_RUN and checks["drc"].status == SignoffStatus.NOT_RUN
         drc = await _wait((await engine.submit(p.id, "signoff_drc", ALICE, source_run=asic.id)).id)
         lvs = await _wait((await engine.submit(p.id, "signoff_lvs", ALICE, source_run=asic.id)).id)
+        sign = await _wait((await engine.submit(p.id, "signoff_openroad", ALICE, source_run=asic.id)).id)
+        assert sign.status == RunStatus.SUCCEEDED, (sign.error, sign.summary)
+        found = sign.summary["checks"]
+        assert set(found) == {"pex", "sta", "power_ir", "antenna"} and all(c["pass"] for c in found.values()), found
+        assert set(found["pex"]["corners"]) == {"min", "nom", "max"} and set(found["sta"]["corners"]) == {"slow", "typical", "fast"}, found
+        assert sign.summary["setup_slack_ns"] > 0 and sign.summary["hold_slack_ns"] > 0 and sign.summary["antenna_violations"] == 0, sign.summary
+        names = {a.name for a in engine.artifacts_of(sign.id)}
+        assert {"signoff/pex/heartbeat.nom.spef", "signoff/sta/sta.json", "signoff/antenna/antenna.rpt"} <= names, names
         assert lvs.status == RunStatus.SUCCEEDED and lvs.summary["lvs_pass"], (lvs.error, lvs.summary)
         # KLayout's manufacturing deck flags the met3 area at the out pin (m3.6) on this layout.
         assert "violations" in drc.summary, (drc.error, drc.summary)
         checks = {c.category: c for c in signoff.checklist(p.id, rev.id)}
         assert checks["lvs"].status == SignoffStatus.PASS
+        for c in ("sta", "pex", "power", "antenna"):
+            assert checks[c].status == SignoffStatus.PASS and checks[c].run_id == sign.id, (c, checks[c].status, checks[c].summary)
+        print("signoff:", sign.summary.get("headline"), "|", checks["sta"].summary, "|", checks["power"].summary)
         assert checks["drc"].status == (SignoffStatus.PASS if drc.summary["violations"] + drc.summary.get("magic_violations", 0) == 0 else SignoffStatus.FAIL)
         print("DRC:", drc.summary.get("headline"), drc.summary.get("rules"), "| LVS:", lvs.summary.get("final_result"), "| ASIC:", s.get("headline"))
     finally:
@@ -91,26 +103,48 @@ async def test_a_restarted_backend_follows_a_running_build_to_its_end():
         engine._loop_task = None
 
 
-@pytest.mark.docker
-@needs_osic
-async def test_heartbeat_builds_on_ihp_sg13g2():
-    """The other PDK with a flow: GDS on IHP SG13G2 (it has no DRC/LVS set up here)."""
+async def _signoff(pdk_id: str, rules_at_least: int, rc_corners: set[str]) -> None:
+    """Build ASIC on ``pdk_id``, then its DRC, LVS and OpenROAD checks: all clean on the heartbeat."""
     flows_asic.register()
     await engine.start()
     try:
-        p = await projects.create("Beat IHP", "digital_heartbeat", ALICE)
-        run = await _wait((await engine.submit(p.id, "asic_sc", ALICE, params={"pdk": "ihp130"})).id)
+        p = await projects.create(f"Beat {pdk_id}", "digital_heartbeat", ALICE)
+        run = await _wait((await engine.submit(p.id, "asic_sc", ALICE, params={"pdk": pdk_id})).id)
         assert run.status == RunStatus.SUCCEEDED, run.error
-        assert run.summary["pdk"] == "ihp130" and run.summary["cells"] > 0, run.summary
+        assert run.summary["pdk"] == pdk_id and run.summary["cells"] > 0, run.summary
         assert "asic/final/heartbeat.full.gds" in {a.name for a in engine.artifacts_of(run.id)}
+        drc = await _wait((await engine.submit(p.id, "signoff_drc", ALICE, source_run=run.id)).id)
+        lvs = await _wait((await engine.submit(p.id, "signoff_lvs", ALICE, source_run=run.id)).id)
+        sign = await _wait((await engine.submit(p.id, "signoff_openroad", ALICE, source_run=run.id)).id)
+        assert drc.status == RunStatus.SUCCEEDED and drc.summary["violations"] == 0, (drc.error, drc.summary)
+        assert drc.summary["rules_checked"] >= rules_at_least, drc.summary
+        # A block has no fill: the chip-level density rules miss, shown and not counted.
+        assert drc.summary["density_rules_missed"] > 0 and drc.summary["density"]["layers"], drc.summary
+        assert lvs.status == RunStatus.SUCCEEDED and lvs.summary["lvs_pass"], (lvs.error, lvs.summary)
+        assert sign.status == RunStatus.SUCCEEDED, (sign.error, sign.summary)
+        assert set(sign.summary["checks"]["pex"]["corners"]) == rc_corners, sign.summary["checks"]["pex"]
         rev = revisions.get(p.id, run.revision_id)
         checks = {c.category: c for c in signoff.checklist(p.id, rev.id)}
-        # The layout is IHP's (chipova.toml still says SKY130): no deck for it, so nothing to run.
-        for c in ("drc", "lvs"):
-            assert checks[c].status == SignoffStatus.BLOCKED and "ihp130" in checks[c].why, (c, checks[c].status, checks[c].why)
-        with pytest.raises(flows.FlowError, match="no DRC is set up"):
-            await engine.submit(p.id, "signoff_drc", ALICE, source_run=run.id)
-        print("IHP:", run.summary.get("headline"), "| DRC:", checks["drc"].why[:90])
+        for c in ("drc", "lvs", "sta", "pex", "power", "antenna"):
+            assert checks[c].status == SignoffStatus.PASS, (c, checks[c].status, checks[c].summary, checks[c].why)
+        print(f"{pdk_id}:", run.summary.get("headline"), "| DRC:", drc.summary.get("headline"), drc.summary["rules_checked"], "rules",
+              "| LVS:", lvs.summary.get("final_result"), "|", sign.summary.get("headline"), "|", checks["sta"].summary)
     finally:
         await engine.stop()
         engine._loop_task = None
+
+
+@pytest.mark.docker
+@needs_osic
+async def test_heartbeat_signs_off_on_ihp_sg13g2():
+    """IHP SG13G2: its own KLayout DRC (main rules) and LVS decks, Magic DRC, and the OpenROAD checks
+    (one RC corner: IHP ships one OpenRCX deck)."""
+    await _signoff("ihp130", 500, {"nom"})
+
+
+@pytest.mark.docker
+@needs_osic
+async def test_heartbeat_signs_off_on_gf180():
+    """GF180MCU: built offline with the baked SiliconCompiler data, the open_pdks KLayout DRC deck,
+    Magic/Netgen LVS, and the OpenROAD checks at lambdapdk's three RC corners."""
+    await _signoff("gf180", 500, {"min", "nom", "max"})

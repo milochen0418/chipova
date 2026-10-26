@@ -1,0 +1,22 @@
+# Project xschemrc: the IHP SG13G2 PDK's settings, plus this folder for the inverter's symbol.
+# xschem reads ./xschemrc when it starts in this folder (CACE netlists the circuit from here).
+
+if { ![info exists env(PDK_ROOT)] } {
+  set ::env(PDK_ROOT) /foss/pdks
+}
+if { ![info exists env(PDK)] } {
+  set ::env(PDK) ihp-sg13g2
+}
+# The PDK's xschemrc reads $env(PWD) (for netlist_dir): a process started without a shell
+# (a container's command, Chipova's runner) may have no PWD.
+if { ![info exists env(PWD)] } {
+  set ::env(PWD) [pwd]
+}
+
+# The PDK's xschemrc: device symbols (sg13g2_pr/...), MODELS_NGSPICE, devices/ library.
+if { ![info exists PDK] } {
+  source $env(PDK_ROOT)/$env(PDK)/libs.tech/xschem/xschemrc
+}
+
+# This folder (inverter.sym, inverter.sch).
+append XSCHEM_LIBRARY_PATH :[file dirname [file normalize [info script]]]

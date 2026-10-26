@@ -38,15 +38,16 @@ class Check:
 CHECKS: tuple[Check, ...] = (
     Check("lint", "RTL lint", ("digital_asic", "fpga"), (), "A clean rtl_lint run (Verilator, Icarus)"),
     Check("sim", "Functional simulation", ("digital_asic", "fpga"), ("digital_asic", "fpga"), "An rtl_sim run whose testbench printed PASS and no FAIL/ERROR"),
-    Check("fpga_timing", "FPGA timing", ("fpga",), ("fpga",), "An fpga_ice40 run meeting the target clock on every clock"),
+    Check("fpga_timing", "FPGA timing", ("fpga",), ("fpga",), "A Build FPGA run (iCE40, ECP5 or Gowin) meeting the target clock on every clock"),
     Check("drc", "DRC", ("digital_asic", "ams"), ("digital_asic", "ams"), "The PDK's DRC deck run on the GDS of a Build ASIC run: 0 violations"),
     Check("lvs", "LVS", ("digital_asic", "ams"), ("digital_asic", "ams"), "Layout vs. netlist with the PDK's LVS setup: circuits match"),
-    Check("sta", "STA", ("digital_asic",), ("digital_asic",), "Setup and hold met (WNS ≥ 0) in the Build ASIC run's post-route timing"),
-    Check("pex", "PEX", ("digital_asic", "ams"), (), "Parasitic extraction with the PDK's rules"),
-    Check("power", "Power / IR", ("digital_asic",), (), "Power and IR-drop analysis at the PDK's corners"),
-    Check("antenna", "Antenna / DFM", ("digital_asic",), (), "The PDK's antenna and DFM rules"),
-    Check("ams_pvt", "AMS PVT corners", ("ams",), ("ams",), "The circuit simulated across process, voltage and temperature corners (CACE)"),
-    Check("fullchip", "Full chip", ("digital_asic", "ams"), (), "Padframe, IO, macros and top-level checks"),
+    Check("sta", "STA", ("digital_asic",), ("digital_asic",), "Setup and hold met at every corner: OpenSTA with each RC corner's extracted parasitics (Run checks)"),
+    Check("pex", "PEX", ("digital_asic", "ams"), (), "OpenRCX with the PDK's rules: one SPEF per RC corner, every routed net in it"),
+    Check("power", "Power / IR", ("digital_asic",), (), "Power and static IR drop (PDNSim) at every corner: the drop under 5 % of VDD"),
+    Check("antenna", "Antenna", ("digital_asic",), ("digital_asic",), "OpenROAD's antenna check with the PDK's LEF rules: no violating net or pin"),
+    Check("ams_pvt", "AMS PVT corners", ("ams",), ("ams",), "A CACE run of this snapshot's datasheet: every spec met at every process corner, supply and temperature"),
+    Check("package", "Package & pinout", ("digital_asic", "ams"), ("digital_asic",), "A package_check run of this snapshot: every port on one pin, the pins within the package, power and ground pins"),
+    Check("fullchip", "Full chip", ("digital_asic", "ams"), (), "A Full chip run of the IHP chip template: padframe, seal ring, macros, the chip's DRC and gate-level LVS"),
 )
 
 # category -> how its status is worked out (the default: not set up in Chipova yet).
@@ -70,6 +71,8 @@ class _Ctx:
     runs: list[Run]
     pdk: str
     testbench: str
+    files: tuple[str, ...] = ()  # the snapshot's
+    cace: str = ""  # its CACE datasheet (chipova.toml [ams] cace)
 
     def latest(self, flow_id: str, source_run: str = "") -> Run | None:
         for r in self.runs:  # newest first
@@ -124,15 +127,34 @@ def _fpga(ctx: _Ctx, check: Check) -> SignoffCheck:
         bad = [f"{c}: {v['achieved_mhz']} < {v['constraint_mhz']} MHz" for c, v in fmax.items() if v["achieved_mhz"] < v["constraint_mhz"]]
         return not bad, "; ".join(bad) or ", ".join(f"{c}: {v['achieved_mhz']} MHz ≥ {v['constraint_mhz']} MHz" for c, v in fmax.items())
 
-    return _from_run(check, ctx.latest("fpga_ice40"), passed)
+    builds = [r for r in (ctx.latest(f) for f in flows.FPGA_FLOWS) if r is not None]
+    return _from_run(check, max(builds, key=lambda r: r.created_at) if builds else None, passed)
 
 
 @resolver("ams_pvt")
 def _ams(ctx: _Ctx, check: Check) -> SignoffCheck:
-    run = ctx.latest("ams_ngspice")
-    note = f" One ngspice run ({run.id}) is not a corner sweep." if run else ""
-    return SignoffCheck(category=check.category, title=check.title, status=SignoffStatus.BLOCKED, why="No PVT corner flow (CACE) is set up in Chipova yet." + note,
-                        evidence=[{"run": run.id, "flow": run.flow_id, "status": run.status.value}] if run else [])
+    if not ctx.cace or ctx.cace not in ctx.files:
+        return SignoffCheck(category=check.category, title=check.title, status=SignoffStatus.BLOCKED,
+                            why="The snapshot has no CACE datasheet: chipova.toml's [ams] cace names it (the corner templates have one).")
+
+    def passed(r: Run) -> tuple[bool, str]:
+        s = r.summary or {}
+        return s.get("cace_status") == "PASS", s.get("headline", "")
+
+    return _from_run(check, ctx.latest("ams_cace"), passed, deck=f"CACE, {ctx.cace}")
+
+
+@resolver("package")
+def _package(ctx: _Ctx, check: Check) -> SignoffCheck:
+    if not all(f in ctx.files for f in flows.PACKAGE_FILES):
+        return SignoffCheck(category=check.category, title=check.title, status=SignoffStatus.BLOCKED,
+                            why="The snapshot has no package plan (package/package.toml and package/pins.csv).")
+
+    def passed(r: Run) -> tuple[bool, str]:
+        s = r.summary or {}
+        return bool(s.get("ok")), "; ".join([s.get("headline", ""), *(s.get("plan_problems") or [])[:3]])
+
+    return _from_run(check, ctx.latest("package_check"), passed)
 
 
 def _not_set_up(ctx: _Ctx, check: Check) -> SignoffCheck:
@@ -159,7 +181,8 @@ def checklist(project_id: str, revision_id: str) -> list[SignoffCheck]:
         settings, _ = settings_file.parse(revisions.show(project_id, rev, settings_file.FILE).decode("utf-8"))
     except RuntimeError:
         settings, _ = settings_file.parse("")
-    ctx = _Ctx(project_id, p.kind.value, revision_id, engine.runs_of(project_id, limit=500, revision_id=revision_id), settings.pdk, settings.testbench)
+    ctx = _Ctx(project_id, p.kind.value, revision_id, engine.runs_of(project_id, limit=500, revision_id=revision_id), settings.pdk, settings.testbench,
+               tuple(e["path"] for e in rev.files), settings.cace)
     waived = {w.category: w for w in waivers(project_id, revision_id) if w.status == "APPROVED"}
     out = []
     for check in CHECKS:

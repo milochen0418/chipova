@@ -630,20 +630,48 @@ def _metrics(run: Run, out: Path, steps: list[RunStep]) -> dict:
             summary.update({k: v for k, v in s.items() if k != "cell_types"})
             summary["cell_types"] = s.get("cell_types", {})
             summary["_steps"]["yosys"] = {k: v for k, v in s.items() if k != "cell_types"}
-    elif run.flow_id == "fpga_ice40":
+    elif run.flow_id in flows.FPGA_FLOWS:
         rep = out / "fpga" / "report.json"
         if rep.is_file():
             r = parsers.nextpnr_report(rep.read_text("utf-8"))
             summary.update(r)
             summary["_steps"]["pnr"] = r
-    elif run.flow_id == "ams_ngspice":
+    elif run.flow_id in ("ams_ngspice", "ams_xschem"):
         m = parsers.spice_measures(log_lines("ngspice"))
         summary["measures"] = m
         summary["_steps"]["ngspice"] = m
         summary["tables"] = sorted(p.name for p in (out / "ams").glob("*.csv")) if (out / "ams").is_dir() else []
-    from chipova.jobs import flows_asic  # noqa: PLC0415 — the ASIC flows add their own numbers
+    elif run.flow_id == "ams_cace":
+        r = _read_json(out / "results" / "cace_results.json")
+        if r:
+            rows = r.get("cace_summary") or []
+            summary["cace_status"] = r.get("status")
+            summary["specs"] = [{k: row.get(k) for k in ("display", "result", "min_limit", "min_value", "typ_value", "max_limit", "max_value", "status")} for row in rows]
+            summary["simulations"] = sum(len(p.get("runs") or []) for p in (r.get("parameters") or {}).values())
+            # Which conditions broke a limit: CACE names only the result; cace_results.py works it out.
+            summary["breaking"] = {n: p["runs_breaking_a_limit"] for n, p in (r.get("parameters") or {}).items() if p.get("runs_breaking_a_limit")}
+            failing = [row for row in rows if row.get("status") != "PASS"]
+            summary["headline"] = (f"{len(rows) - len(failing)} of {len(rows)} specs met at every corner" if rows else r.get("why") or "no result")
+            if r.get("status") != "PASS":
+                summary["error_text"] = "CACE: " + ("; ".join(
+                    f"{row.get('result')} {str(row.get('status')).lower()} (min {row.get('min_value')}, max {row.get('max_value')}; limits {row.get('min_limit')} … {row.get('max_limit')})"
+                    for row in failing[:4]) or str(r.get("why") or r.get("status")))
+            summary["_labels"] = {"cace_status": "CACE verdict", "simulations": "Simulations"}
+            summary["_steps"]["cace"] = {"status": r.get("status"), "simulations": summary["simulations"]}
+    elif run.flow_id == "package_check":
+        report = _read_json(out / "package" / "report.json")
+        if report:
+            problems = report.get("problems") or []
+            summary.update({k: report.get(k) for k in ("ok", "package", "pins", "ports", "mapped", "power_pins", "ground_pins")})
+            summary["plan_problems"] = problems[:50]
+            summary["headline"] = f"{report.get('package')}: {report.get('mapped')} of {report.get('ports')} ports on pins" if report.get("ok") else f"{len(problems)} problems in the plan"
+            summary["_labels"] = {"package": "Package", "pins": "Pins", "ports": "Port bits", "mapped": "On pins", "power_pins": "Power pins", "ground_pins": "Ground pins"}
+            summary["_steps"]["check"] = {"ok": report.get("ok"), "problems": len(problems)}
+    from chipova.jobs import flows_asic, flows_chip  # noqa: PLC0415 — the ASIC flows add their own numbers
 
     flows_asic.metrics(run, out, summary)
+    if run.flow_id == "fullchip_ihp":
+        flows_chip.metrics(run, out, summary, {s.node: s.status.value for s in steps})
     return summary
 
 

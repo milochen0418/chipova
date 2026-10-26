@@ -15,7 +15,8 @@ from chipova.states.ide import IdeState
 from chipova.states.room import note, push_later
 from chipova.states.ui_state import UiState
 
-FIELDS = ("top", "testbench", "rtl", "sim", "sdc", "clock_port", "clock_period_ns", "pdk", "fpga_device", "fpga_package", "pcf", "spice")
+FIELDS = ("top", "testbench", "rtl", "sim", "sdc", "clock_port", "clock_period_ns", "pdk", "fpga_family", "fpga_device", "fpga_package", "fpga_pins", "pcf", "spice",
+          "cace", "schematic_tb")
 LISTS = ("rtl", "sim")
 
 
@@ -101,6 +102,7 @@ class SettingsState(rx.State):
         except projects.Denied as e:
             return rx.toast.error(str(e), position="bottom-right")
         self.conflict = ""
+        ide.fpga_family = new.fpga_family
         note(ide.project_id, actor.name, "changed the project's settings")
         push_later(ide.project_id, "latest")
         return rx.toast.success("Settings saved (chipova.toml); the next snapshot takes them.", position="bottom-right")

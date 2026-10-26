@@ -131,7 +131,7 @@ def signoff_view() -> rx.Component:
         waiver_dialog(),
         on_mount=SignoffState.load(""),
         id="signoff-view",
-        class_name="flex flex-col gap-4 h-full p-5 overflow-y-auto",
+        class_name="flex flex-col gap-4 h-full p-3 md:p-5 overflow-y-auto",
     )
 
 
@@ -240,5 +240,5 @@ def release_view() -> rx.Component:
         decision_dialog(),
         on_mount=SignoffState.load(""),
         id="release-view",
-        class_name="flex flex-col gap-4 h-full p-5 overflow-y-auto",
+        class_name="flex flex-col gap-4 h-full p-3 md:p-5 overflow-y-auto",
     )

@@ -1,0 +1,5 @@
+# What the chip should measure, and what the design predicted before silicon: Lab compares the
+# measurements of real chips (OpenHTF records) with these, each in its own column.
+name,unit,min,max,pre_silicon,source
+pulse_period_us,µs,2.50,2.62,2.56,"2^8 clocks at 100 MHz (N = 8, heartbeat.sdc); rtl_sim"
+pulse_width_ns,ns,9,11,10,"one clock at 100 MHz; rtl_sim"

@@ -14,8 +14,8 @@ tools as the AI Hub does, and plain HTTP calls to the backend.
 
 Every run starts its own server with its own data folder (`CHIPOVA_HOME=$OUTPUT_DIR/home`, fresh
 each time), so your projects are never touched; the runs are real containers on your Docker, so
-Docker must be running with the tool images installed (`chipova/eda-base:1`; the ASIC flows need
-`chipova/eda-osic:2026.10-1`). The runner sets `DDNS_AUTH_SECRET` to a test value and
+Docker must be running with the tool images installed (`chipova/eda-base:1`; the ASIC flows and
+the Xschem desktop need `chipova/eda-osic:2026.10-3`). The runner sets `DDNS_AUTH_SECRET` to a test value and
 `SERVICE_SUBDOMAIN=chipova`. A suite's own server settings go in `testcases/<suite>/server.env`
 (`KEY=value` lines), which the runner loads before it starts the server.
 
@@ -30,6 +30,12 @@ Docker must be running with the tool images installed (`chipova/eda-base:1`; the
 | `fpga_build` | The iCEBreaker blinky builds to a bitstream with its Fmax; the bitstream downloads and its SHA-256 is the recorded one, and the server checks it again; built again on the same snapshot, Compare finds nothing different. |
 | `permissions` | A private project refuses someone without access on the page, the REST API (his own token), the co-editing socket (a genuine ticket: closed with 4403) and a download link signed for him, and audits each refusal; made a viewer, he reads but can't type, run or freeze, and the link works. |
 | `signoff_release` | Two signed-in people: nothing is PASS before it ran; a release asked for at once is held at its gate, the requester can't approve it and the reviewer is told what is missing; after the runs, a lint waiver asked by one and approved by the other reads WAIVED; the reviewer approves and the package (sources, bitstream, manifest saying it is not a foundry signoff) downloads. |
+| `offline_lan` | No internet, only the network to Chipova: every request to another host is blocked, and two people still open the editor, type at once and see each other's carets; nothing on the page even tries to reach another host. |
+| `board_helper` | Programming a board through one's own board helper (`scripts/board_helper.py --dry-run`, no board needed): with no helper running the dialog says how to start one; once it runs, the person picks it and the board, the helper takes the job, checks the bitstream's SHA-256 and reports, and the run shows how it went. |
+| `phone_view` | On a phone (390 × 844): the phone layout, not the editor's panes; the AI's proposal is reviewed and accepted; a run the AI asked for is approved and ends; a file is read and a comment put on one of its lines; the other views stack and nothing scrolls sideways. |
+| `lab_package` | The Lab page: the Heartbeat's QFN-16 package plan passes its check and its bond diagram is drawn; two OpenHTF records dropped on the page (one chip in spec, one with its pulse too slow) show beside the spec and the design's own values; the signoff's Package & pinout check passes. |
+| `ams_corners` | Analog across corners (needs `chipova/eda-osic`): the IHP inverter template's datasheet passes CACE at every corner, its specs and schematic show on the run, and the signoff's AMS PVT check passes; Xschem simulation netlists the testbench and ngspice measures its delays. |
+| `xschem_desktop` | Xschem in the browser (needs `chipova/eda-osic`): a person's desktop starts with a copy of the project's files and shows through noVNC in the page; a file changed in it goes back to the project on Save, for everyone; a file changed in both places is left alone and named; Close removes the desktop. |
 | `perf_baseline` | Measures (blueprint §12): the co-editing delay between two tabs, catching up after five 3 s drops, queue waits with six runs and two at once, every artifact's SHA-256 on download, the same FPGA build twice; writes `perf.json` with the machine's CPU, memory and Docker. See [docs/e2e-test-plan.md](../docs/e2e-test-plan.md). |
 
 ## Running
@@ -42,6 +48,12 @@ poetry run ./run_test_suite.sh ai_review
 poetry run ./run_test_suite.sh fpga_build
 poetry run ./run_test_suite.sh permissions
 poetry run ./run_test_suite.sh signoff_release
+poetry run ./run_test_suite.sh offline_lan
+poetry run ./run_test_suite.sh board_helper
+poetry run ./run_test_suite.sh phone_view
+poetry run ./run_test_suite.sh lab_package
+poetry run ./run_test_suite.sh ams_corners
+poetry run ./run_test_suite.sh xschem_desktop
 poetry run ./run_test_suite.sh perf_baseline
 ```
 

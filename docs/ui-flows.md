@@ -128,12 +128,17 @@ verification runs; the selected run: status, snapshot, who, time, image, paramet
 
 ## UI-05: Implement
 
-**Synthesize**, **Build FPGA**, **SPICE**, **Build ASIC** (`[data-start=synth_yosys|fpga_ice40|ams_ngspice|asic_sc]`).
+**Synthesize**, **Build FPGA** (the family in Settings: `fpga_ice40`, `fpga_ecp5` or `fpga_gowin`),
+**SPICE**, **Xschem simulation**, **Corners (CACE)**, **Build ASIC**
+(`[data-start=synth_yosys|fpga_…|ams_ngspice|ams_xschem|ams_cace|asic_sc]`).
 The selected run shows its **flowgraph** (`#flowgraph`, nodes `[data-node]` with
 `data-node-status`; Build ASIC's 23 SiliconCompiler steps fill in live, each with its time, its
-numbers and a link to its log), its numbers (cells, area, slack, Fmax, power estimate, DRVs; the
-FPGA's resource use and Fmax per clock; SPICE's measurements) and charts (`[data-chart]`, from
-`wrdata` tables), its artifacts (GDS, netlists, DEF, bitstream, reports, the RTL schematic).
+numbers and a link to its log), its numbers (`#run-facts`: cells, area, slack, Fmax, power
+estimate, DRVs; the FPGA's resource use and Fmax per clock; SPICE's measurements; each CACE spec's
+min / typical / max against its limits; STA and power/IR per corner; metal density per layer),
+its picture (the RTL schematic, the layout, or the Xschem testbench) and charts (`[data-chart]`,
+from `wrdata` tables), its artifacts (GDS, netlists, DEF, SPEF, bitstream, reports, CACE's plots).
+A bitstream run has **Program the board** (`#program-board-open`, below).
 
 | Empty / failure | |
 |---|---|
@@ -170,8 +175,8 @@ reviewer or owner other than the asker approves or rejects it (`[data-approve-wa
 | FAIL | a run of this snapshot failed it (the count, the first errors) |
 | RUNNING | its run is queued or running |
 | NOT RUN | it can run here but hasn't on this snapshot |
-| BLOCKED | it can't run here; says why (no deck for this PDK, no testbench, no CACE flow, no layout yet) |
-| NOT CONFIGURED | no flow for it is set up in Chipova (PEX, power/IR, antenna, full chip) |
+| BLOCKED | it can't run here; says why (no deck or corners for this PDK, no testbench, no CACE datasheet, no package plan, no layout yet) |
+| NOT CONFIGURED | no flow for it is set up in Chipova |
 | WAIVED | a person approved a waiver; never counted as PASS |
 
 The footer: results on an open PDK are for learning, prototypes and test chips.
@@ -186,6 +191,36 @@ before it can be approved** (each required check not PASS/WAIVED; the approval).
 **Back to draft**, **Build package** (`[data-package]` → `[data-download-package]`), and for an
 approved release the owner's **Mark foundry ready…** (their written statement of who checked the
 foundry's own requirements, and how).
+
+## Program the board
+
+On a bitstream run (`#program-board-open`): the person's board helpers (`#board-helper`; none
+running: how to start `scripts/board_helper.py` with a token, and **Look again** `#look-again`),
+the board (`#board-name`, openFPGALoader's board names offered), **Program** (`#program-board`).
+The job (`[data-board-job]` with `data-board-status`: QUEUED → SENT → PROGRAMMING → DONE or
+FAILED) shows on the run with the helper's report.
+
+## Lab
+
+**Check the package plan** (`[data-start=package_check]`): the plan's numbers and its bond diagram
+(`#bond-diagram`). **Test records**: OpenHTF JSON files dropped on `#lab-upload`; each
+(`[data-lab-record]`) with its chip, station, outcome and time; the comparison (`#lab-compare`, a
+row per measurement `[data-measure=<name>]` with `data-verdict`: in spec, out of spec, not
+measured) lines the spec (`lab/spec.csv`), the design's own value and each chip up.
+
+| Empty / failure | |
+|---|---|
+| No package plan | the check is refused: the snapshot has no `package/package.toml` and `package/pins.csv` |
+| Not an OpenHTF record | refused: "that is not an OpenHTF test record (its JSON output has phases)" |
+
+## Xschem desktop
+
+**Xschem** in the top bar (`#xschem-button`): one's own desktop starts with a copy of the
+project's files and opens the file shown in the editor (a `.sch` or `.sym`, from its own folder); it shows in the page
+(`#desktop-view`, the noVNC frame `#desktop-frame`). **Save to the project** (`#desktop-save`:
+the changed and added text files go back for everyone; a file changed in both places is left
+alone and named), **Hide** (`#desktop-hide`, it keeps running), **Close** (`#desktop-close`,
+removed). An idle desktop is removed after 20 minutes.
 
 ## UI-08: Agents
 
@@ -219,23 +254,32 @@ AI Hub's address. **Docker isn't reachable** when the app has no Docker socket.
 
 **FLOW-DIGITAL (RTL → GDSII)**: New project → Heartbeat → (invite: link or members with roles) →
 edit RTL / testbench / SDC together, comments → the AI proposes, a person accepts → Lint →
-Simulate → Waveform → Freeze → Build ASIC (SKY130 or IHP SG13G2) → Layout → Signoff: Run checks
-(DRC, LVS; STA from the build) → Release: new release, ask for review, another person approves →
-Build package. Every result names its snapshot, image and tool versions (Manifest). FOUNDRY_READY
-only by the owner's statement.
+Simulate → Waveform → Freeze → Build ASIC (SKY130, IHP SG13G2 or GF180) → Layout → Signoff: Run
+checks (DRC, LVS, and timing, parasitics, antenna and power/IR on the routed design; the package
+plan) → Release: new release, ask for review, another person approves → Build package. Every
+result names its snapshot, image and tool versions (Manifest). FOUNDRY_READY only by the owner's
+statement.
 
-**FLOW-FPGA (RTL → bitstream)**: Blinky → Simulate → Build FPGA (device, package, pin file, target
-clock in `chipova.toml`) → resource use and Fmax per clock → download the `.bin`. Programming a
-board is not part of Chipova (no hardware worker).
+**FLOW-FPGA (RTL → bitstream)**: Blinky (iCEBreaker, ULX3S or Tang Nano 9K) → Simulate → Build FPGA
+(family, device, package, pin file, target clock in `chipova.toml`) → resource use and Fmax per
+clock → download the bitstream, or **Program the board** through one's board helper.
 
-**FLOW-AMS**: CMOS inverter → SPICE: measurements and charts. Not built: Xschem schematics in the
-browser, CACE corners (the check is BLOCKED), the IHP AMS chip template, analog layout, padframe
-and full-chip checks.
+**FLOW-AMS**: Inverter across corners (SKY130 or IHP) → open the schematic in Xschem (the desktop),
+change it, Save → Xschem simulation (delays measured) → Corners (CACE): every spec at every
+corner → Signoff: AMS PVT corners. The CMOS inverter template is a plain SPICE deck. The
+analog/mixed-signal chip (IHP) → edit the RTL, the LibreLane setup or the schematics → Signoff:
+Run checks (Full chip builds the macros and the chip and checks them; it reads BLOCKED with what
+can't run here, or FAIL) → Layout: the chip's GDS.
 
-**FLOW-POSTSILICON**: not built (no package planning, no OpenHTF).
+**FLOW-POSTSILICON**: Heartbeat's package plan → Check the package plan (bond diagram) → the bench
+runs its OpenHTF test (`lab/bench_test.py`) on each chip → its records dropped on the Lab page →
+each measurement against the spec and the design.
 
 ## Phones
 
-Chipova is designed for wide screens: the workspace's three panes need a laptop or larger. The
-projects page works on a phone; the workspace has no phone layout yet (the blueprint's §4.4: watch
-runs, comment, approve on a phone, is not done).
+Below 768 px wide the workspace is one column (`components/phone.py`) with tabs
+(`[data-phone-tab=…]`): **AI** (the proposals: diff, accept, reject), **Runs** (approve a run an AI
+asked for), **Comments**, **Files** (open one `[data-phone-file]`, read it, comment on a line
+`#phone-file [data-phone-line]`) and **People**; the bottom navigation (`[data-view]`) goes to the
+other pages, which stack; nothing scrolls sideways (e2e:`phone_view`). Typing in the editor and
+the Xschem desktop need a wider screen.

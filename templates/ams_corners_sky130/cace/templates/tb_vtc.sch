@@ -1,0 +1,52 @@
+v {xschem version=3.4.8RC file_version=1.2}
+G {}
+K {}
+V {}
+S {}
+E {}
+T {CACE template: DC transfer curve -> switching threshold VM (vout = vin) and noise margins (slope = -1)} -260 -160 0 0 0.3 0.3 {}
+N -240 -60 -240 -30 {lab=VDD}
+N -240 30 -240 60 {lab=GND}
+N -120 -60 -120 -30 {lab=IN}
+N -120 30 -120 60 {lab=GND}
+N 260 0 300 0 {lab=IN}
+N 380 0 480 0 {lab=OUT}
+N 340 -60 340 -40 {lab=VDD}
+N 340 40 340 80 {lab=GND}
+C {devices/vsource.sym} -240 0 0 0 {name=Vdd value=CACE\{vdd\} savecurrent=false}
+C {devices/lab_pin.sym} -240 -60 0 0 {name=p1 sig_type=std_logic lab=VDD}
+C {devices/gnd.sym} -240 60 0 0 {name=l1 lab=GND}
+C {devices/vsource.sym} -120 0 0 0 {name=Vin value=0 savecurrent=false}
+C {devices/lab_pin.sym} -120 -60 0 0 {name=p2 sig_type=std_logic lab=IN}
+C {devices/gnd.sym} -120 60 0 0 {name=l2 lab=GND}
+C {inverter.sym} 340 0 0 0 {name=x1}
+C {devices/lab_pin.sym} 260 0 0 0 {name=p3 sig_type=std_logic lab=IN}
+C {devices/lab_pin.sym} 480 0 0 1 {name=p4 sig_type=std_logic lab=OUT}
+C {devices/lab_pin.sym} 340 -60 0 0 {name=p5 sig_type=std_logic lab=VDD}
+C {devices/gnd.sym} 340 80 0 0 {name=l3 lab=GND}
+C {devices/code_shown.sym} -260 140 0 0 {name=SETUP
+simulator=ngspice
+only_toplevel=false
+value="
+* PDK models at the process corner, the circuit's netlist, the temperature
+.lib CACE\{PDK_ROOT\}/CACE\{PDK\}/libs.tech/combined/sky130.lib.spice CACE\{corner\}
+.include CACE\{DUT_path\}
+.temp CACE\{temperature\}
+
+.control
+set num_threads=1
+dc Vin 0 CACE\{vdd\} 1m
+* switching threshold: the input voltage where vout = vin
+let diff = v(out) - v(in)
+meas dc vm when diff=0 fall=1
+* noise margins from the unity-gain points (dVout/dVin = -1)
+let slope = deriv(v(out))
+meas dc vil when slope=-1 fall=1
+meas dc vih when slope=-1 rise=1
+meas dc voh find v(out) when slope=-1 fall=1
+meas dc vol find v(out) when slope=-1 rise=1
+let nml = vil - vol
+let nmh = voh - vih
+echo $&vm $&nml $&nmh > CACE\{simpath\}/CACE\{filename\}_CACE\{N\}.data
+.endc
+"}

@@ -11,6 +11,7 @@ from chipova.components.common import BTN, BTN_AI, BTN_GHOST, BTN_OUTLINE, BTN_P
 from chipova.components.links import backend_base, backend_url
 from chipova.components.together import face
 from chipova.states.comments_state import CommentsState
+from chipova.states.desktop_state import DesktopState
 from chipova.states.ide import IdeState
 from chipova.states.review_state import ReviewState
 from chipova.states.room import ProjectRoom
@@ -376,13 +377,46 @@ def snapshot_view() -> rx.Component:
     )
 
 
+def desktop_view() -> rx.Component:
+    """Xschem's desktop (a container of the IIC-OSIC-TOOLS image), in the page through noVNC."""
+    return rx.el.div(
+        rx.el.div(
+            rx.icon("monitor", class_name="h-4 w-4 text-teal-300"),
+            rx.el.span("Xschem desktop", class_name="text-sm font-semibold text-slate-100"),
+            rx.el.span("A copy of the project's files: Save puts what you changed back, for everyone.", class_name="text-xs text-slate-500 hidden xl:inline"),
+            rx.el.div(
+                rx.el.button(rx.icon("save", class_name="h-3.5 w-3.5"), "Save to project", on_click=DesktopState.save, disabled=DesktopState.url == "", id="desktop-save", class_name=BTN_PRIMARY),
+                rx.el.button("Hide", on_click=DesktopState.hide, id="desktop-hide", class_name=BTN_OUTLINE),
+                rx.el.button(rx.icon("power", class_name="h-3.5 w-3.5"), "Close desktop", on_click=DesktopState.close, id="desktop-close", class_name=BTN_OUTLINE),
+                class_name="ml-auto flex gap-2",
+            ),
+            class_name="flex items-center gap-2 px-3 h-11 border-b border-slate-800 shrink-0",
+        ),
+        rx.cond(
+            DesktopState.url != "",
+            rx.el.iframe(src=backend_url(DesktopState.url), id="desktop-frame", class_name="flex-1 w-full border-0 bg-black"),
+            rx.el.div(
+                rx.icon("loader", class_name="h-6 w-6 animate-spin text-teal-400"),
+                rx.el.span("Starting the desktop: Xschem and the IIC-OSIC-TOOLS tools, with a copy of the project's files…"),
+                class_name="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-slate-400",
+            ),
+        ),
+        id="desktop-view",
+        class_name="flex flex-col flex-1 min-h-0",
+    )
+
+
 def center() -> rx.Component:
     return rx.el.div(
         rx.el.div(
             rx.el.div(rx.foreach(ProjectRoom.files, tab), id="tabs", class_name="flex items-stretch h-full overflow-x-auto"),
             class_name="h-9 shrink-0 bg-slate-950 border-b border-slate-800",
         ),
-        rx.cond(ReviewState.open_id != "", proposal_view(), rx.cond(SnapshotState.open_id != "", snapshot_view(), editor())),
+        rx.cond(
+            DesktopState.shown,
+            desktop_view(),
+            rx.cond(ReviewState.open_id != "", proposal_view(), rx.cond(SnapshotState.open_id != "", snapshot_view(), editor())),
+        ),
         class_name="flex flex-col flex-1 min-h-0 bg-slate-900",
     )
 

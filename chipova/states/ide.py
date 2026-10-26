@@ -16,7 +16,8 @@ from chipova.services import audit, collab, presence, projects, revisions, templ
 from chipova.states.room import EVERYTHING, ProjectRoom, note, publish, push_later
 from chipova.states.ui_state import UiState
 
-VIEWS = ("code", "verify", "implement", "layout", "signoff", "release", "agents", "settings")
+VIEWS = ("code", "verify", "implement", "layout", "signoff", "release", "lab", "agents", "settings")
+PHONE_WIDTH = 768
 
 
 class IdeState(rx.State):
@@ -52,6 +53,11 @@ class IdeState(rx.State):
     snapshot_message: str = ""
     # A run asked for while the editors differ from the latest snapshot: {"flow", "title"}.
     run_ask: dict[str, str] = {}
+    # Which Build FPGA flow the project's settings name (ice40, ecp5, gowin).
+    fpga_family: str = "ice40"
+    # A phone-sized window gets the phone layout (components/phone.py), and which of its tabs.
+    phone: bool = False
+    phone_tab: str = "ai"
 
     # -------------------------------------------------------- arriving
 
@@ -82,6 +88,7 @@ class IdeState(rx.State):
         self.can_review = access.can(roles.REVIEW)
         self.can_manage = access.can(roles.MANAGE)
         self.ticket = collab.make_ticket(actor.user, actor.name, pid)
+        self.fpga_family = projects.settings(pid)[0].fpga_family
         if view in VIEWS:
             self.view = view
         if changed:
@@ -100,7 +107,19 @@ class IdeState(rx.State):
         return [
             IdeState.join_room,
             rx.call_script(f"document.title = {json.dumps(project.title + ' · Chipova')}"),
+            rx.call_script("window.innerWidth", callback=IdeState.set_width),
         ]
+
+    @rx.event
+    def set_width(self, width: int, height: int = 0):
+        """The window's width (on load and when it changes): below 768 px, the phone layout."""
+        phone = 0 < int(width or 0) < PHONE_WIDTH
+        if phone != self.phone:
+            self.phone = phone
+
+    @rx.event
+    def set_phone_tab(self, tab: str):
+        self.phone_tab = tab
 
     def _open_default(self, pid: str) -> None:
         s, _, _ = projects.settings(pid)

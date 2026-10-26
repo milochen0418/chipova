@@ -49,23 +49,27 @@ PROFILES: tuple[Profile, ...] = (
         image="chipova/eda-base:1",
         dockerfile="eda-base",
         base="debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad",
-        tools=("iverilog", "verilator", "yosys", "nextpnr-ice40", "icestorm", "ngspice", "graphviz"),
+        tools=("iverilog", "verilator", "yosys", "nextpnr-ice40", "icestorm", "nextpnr-ecp5", "prjtrellis", "nextpnr-gowin", "apicula", "ngspice", "graphviz"),
         versions={
             "iverilog": ["iverilog", "-V"],
             "verilator": ["verilator", "--version"],
             "yosys": ["yosys", "-V"],
             "nextpnr-ice40": ["nextpnr-ice40", "--version"],
+            "nextpnr-ecp5": ["nextpnr-ecp5", "--version"],
+            "nextpnr-gowin": ["nextpnr-gowin", "--version"],
+            "prjtrellis": ["dpkg-query", "-W", "-f", "${Version}", "fpga-trellis"],
+            "apicula": ["dpkg-query", "-W", "-f", "${Version}", "python3-apycula"],
             "ngspice": ["sh", "-c", "ngspice -v | grep -m1 -i ngspice"],
             "graphviz": ["dot", "-V"],
             "debian": ["cat", "/etc/debian_version"],
         },
         size="about 1.2 GB, built here from Debian packages",
-        description="Lint, simulation, synthesis, iCE40 FPGA place and route, SPICE: Debian's packages, native on Intel and ARM.",
+        description="Lint, simulation, synthesis, FPGA place and route (Lattice iCE40 and ECP5, Gowin GW1N), SPICE: Debian's packages, native on Intel and ARM.",
     ),
     Profile(
         id="iic-osic-2026.10",
         title="IIC-OSIC-TOOLS 2026.10",
-        image="chipova/eda-osic:2026.10-1",
+        image="chipova/eda-osic:2026.10-3",
         dockerfile="eda-osic",
         # The Dockerfile pins it by digest (sha256:306585de…); this tag is what is pulled first.
         base="hpretl/iic-osic-tools:2026.10",
@@ -85,8 +89,10 @@ PROFILES: tuple[Profile, ...] = (
             "iverilog": ["iverilog", "-V"],
             "pdks": ["sh", "-c", "ls ${PDK_ROOT:-/foss/pdks}"],
             # The PDK data's own versions: open_pdks (the DRC/LVS decks), IHP's commit, and what
-            # SiliconCompiler builds with (lambdapdk, its IHP data).
-            "pdk-data": ["sh", "-c", "echo open_pdks=$(ls /foss/pdks/ciel/sky130/versions | cut -c1-12) ihp-sg13g2=$(cut -c1-12 /foss/pdks/ihp-sg13g2/COMMIT) sc=$(ls /opt/sc-cache/dataroot | tr '\\n' ' ')"],
+            # SiliconCompiler builds with (lambdapdk and which of its PDKs are baked, its IHP data).
+            "pdk-data": ["sh", "-c", "echo open_pdks=$(ls /foss/pdks/ciel/sky130/versions | cut -c1-12) ihp-sg13g2=$(cut -c1-12 /foss/pdks/ihp-sg13g2/COMMIT) sc=$(ls /opt/sc-cache/dataroot | tr '\\n' ' ') baked=$(cd /opt/sc-cache/dataroot/lambdapdk-*/lambdapdk && echo */ | tr -d /)"],
+            # The IHP chip template Full chip builds (its release tag and commit).
+            "ams-template": ["cat", "/opt/chipova/ams-template/.chipova-template"],
         },
         size="about 4 GB to download, 17 GB on disk",
         description="The open-source IC design image of JKU Linz's Institute for Integrated Circuits: OpenROAD, KLayout, Magic, Netgen, Xschem, ngspice and the SkyWater 130, GF180 and IHP SG13G2 PDKs, with SiliconCompiler driving RTL to GDSII.",

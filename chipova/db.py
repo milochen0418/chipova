@@ -89,6 +89,18 @@ CREATE TABLE IF NOT EXISTS access_requests(
 CREATE TABLE IF NOT EXISTS profiles(
     id TEXT PRIMARY KEY, image TEXT DEFAULT '', image_id TEXT DEFAULT '', digest TEXT DEFAULT '',
     versions TEXT DEFAULT '{}', installed_at REAL DEFAULT 0, status TEXT DEFAULT '', detail TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS lab_results(
+    id TEXT PRIMARY KEY, project_id TEXT, revision_id TEXT, dut TEXT DEFAULT '', station TEXT DEFAULT '',
+    test TEXT DEFAULT '', outcome TEXT DEFAULT '', simulated INTEGER DEFAULT 0, started_at REAL DEFAULT 0,
+    ended_at REAL DEFAULT 0, measurements TEXT DEFAULT '[]', sha256 TEXT DEFAULT '', uploaded_by TEXT DEFAULT '',
+    uploaded_by_name TEXT DEFAULT '', created_at REAL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS board_helpers(
+    id TEXT PRIMARY KEY, owner TEXT, owner_name TEXT DEFAULT '', name TEXT DEFAULT '', boards TEXT DEFAULT '[]',
+    loader TEXT DEFAULT '', last_seen REAL DEFAULT 0, created_at REAL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS board_jobs(
+    id TEXT PRIMARY KEY, project_id TEXT, run_id TEXT, artifact_id TEXT, helper_id TEXT, board TEXT,
+    status TEXT, requested_by TEXT, requested_by_name TEXT DEFAULT '', log TEXT DEFAULT '',
+    created_at REAL DEFAULT 0, updated_at REAL DEFAULT 0);
 """
 
 

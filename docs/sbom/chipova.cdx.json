@@ -1,10 +1,10 @@
 {
  "bomFormat": "CycloneDX",
  "specVersion": "1.5",
- "serialNumber": "urn:uuid:b1dbdfa8-c4fb-4026-888e-54e9bce31a12",
+ "serialNumber": "urn:uuid:b7b141a9-5e78-4f9a-9246-1c3c670ffe8e",
  "version": 1,
  "metadata": {
-  "timestamp": "2026-10-26T09:22:44Z",
+  "timestamp": "2026-10-26T16:43:50Z",
   "tools": [
    {
     "name": "chipova scripts/sbom.py"
@@ -974,6 +974,20 @@
   },
   {
    "type": "library",
+   "name": "monaco-editor",
+   "version": "0.55.1",
+   "purl": "pkg:npm/monaco-editor@0.55.1",
+   "bom-ref": "pkg:npm/monaco-editor@0.55.1",
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
    "name": "react",
    "version": "19.3.0",
    "purl": "pkg:npm/react@19.3.0",
@@ -992,6 +1006,20 @@
    "version": "19.3.0",
    "purl": "pkg:npm/react-dom@19.3.0",
    "bom-ref": "pkg:npm/react-dom@19.3.0",
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "react-dropzone",
+   "version": "17.0.0",
+   "purl": "pkg:npm/react-dropzone@17.0.0",
+   "bom-ref": "pkg:npm/react-dropzone@17.0.0",
    "licenses": [
     {
      "license": {
@@ -1100,21 +1128,15 @@
   },
   {
    "type": "library",
-   "name": "monaco-editor",
-   "version": "0.55.1",
-   "purl": "pkg:npm/monaco-editor@0.55.1",
-   "bom-ref": "pkg:npm/monaco-editor@0.55.1",
+   "name": "y-websocket",
+   "version": "2.0.4",
+   "purl": "pkg:npm/y-websocket@2.0.4",
+   "bom-ref": "pkg:npm/y-websocket@2.0.4",
    "licenses": [
     {
      "license": {
       "name": "MIT"
      }
-    }
-   ],
-   "properties": [
-    {
-     "name": "chipova:loaded-from",
-     "value": "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs"
     }
    ]
   },
@@ -1129,32 +1151,6 @@
      "license": {
       "name": "MIT"
      }
-    }
-   ],
-   "properties": [
-    {
-     "name": "chipova:loaded-from",
-     "value": "https://esm.sh/yjs@13.6.18"
-    }
-   ]
-  },
-  {
-   "type": "library",
-   "name": "y-websocket",
-   "version": "2.0.4",
-   "purl": "pkg:npm/y-websocket@2.0.4",
-   "bom-ref": "pkg:npm/y-websocket@2.0.4",
-   "licenses": [
-    {
-     "license": {
-      "name": "MIT"
-     }
-    }
-   ],
-   "properties": [
-    {
-     "name": "chipova:loaded-from",
-     "value": "https://esm.sh/y-websocket@2.0.4"
     }
    ]
   },
@@ -1191,7 +1187,7 @@
     },
     {
      "name": "chipova:image-id",
-     "value": "sha256:5f929b9818e898a15b834a5191165dc867332633d81dabccb98161d8192fe79c"
+     "value": "sha256:6d73f94dbc460d2146e3363028cd57100d9c4e63f766c41e530e3a93962e46b5"
     },
     {
      "name": "chipova:base",
@@ -1401,6 +1397,20 @@
      "version": "0~20250207git7fbf8c0+dfsg1-1",
      "purl": "pkg:deb/debian/fpga-icestorm@0~20250207git7fbf8c0+dfsg1-1",
      "bom-ref": "pkg:deb/debian/fpga-icestorm@0~20250207git7fbf8c0+dfsg1-1"
+    },
+    {
+     "type": "library",
+     "name": "fpga-trellis",
+     "version": "1.4-2+b5",
+     "purl": "pkg:deb/debian/fpga-trellis@1.4-2+b5",
+     "bom-ref": "pkg:deb/debian/fpga-trellis@1.4-2+b5"
+    },
+    {
+     "type": "library",
+     "name": "fpga-trellis-database",
+     "version": "1.4-2",
+     "purl": "pkg:deb/debian/fpga-trellis-database@1.4-2",
+     "bom-ref": "pkg:deb/debian/fpga-trellis-database@1.4-2"
     },
     {
      "type": "library",
@@ -2643,6 +2653,34 @@
     },
     {
      "type": "library",
+     "name": "nextpnr-ecp5",
+     "version": "0.7-1+b3",
+     "purl": "pkg:deb/debian/nextpnr-ecp5@0.7-1+b3",
+     "bom-ref": "pkg:deb/debian/nextpnr-ecp5@0.7-1+b3"
+    },
+    {
+     "type": "library",
+     "name": "nextpnr-ecp5-chipdb",
+     "version": "0.7-1+b3",
+     "purl": "pkg:deb/debian/nextpnr-ecp5-chipdb@0.7-1+b3",
+     "bom-ref": "pkg:deb/debian/nextpnr-ecp5-chipdb@0.7-1+b3"
+    },
+    {
+     "type": "library",
+     "name": "nextpnr-gowin",
+     "version": "0.7-1+b3",
+     "purl": "pkg:deb/debian/nextpnr-gowin@0.7-1+b3",
+     "bom-ref": "pkg:deb/debian/nextpnr-gowin@0.7-1+b3"
+    },
+    {
+     "type": "library",
+     "name": "nextpnr-gowin-chipdb",
+     "version": "0.7-1+b3",
+     "purl": "pkg:deb/debian/nextpnr-gowin-chipdb@0.7-1+b3",
+     "bom-ref": "pkg:deb/debian/nextpnr-gowin-chipdb@0.7-1+b3"
+    },
+    {
+     "type": "library",
      "name": "nextpnr-ice40",
      "version": "0.7-1+b3",
      "purl": "pkg:deb/debian/nextpnr-ice40@0.7-1+b3",
@@ -2713,10 +2751,24 @@
     },
     {
      "type": "library",
+     "name": "python3-apycula",
+     "version": "0.17+dfsg1-1",
+     "purl": "pkg:deb/debian/python3-apycula@0.17+dfsg1-1",
+     "bom-ref": "pkg:deb/debian/python3-apycula@0.17+dfsg1-1"
+    },
+    {
+     "type": "library",
      "name": "python3-click",
      "version": "8.2.0+0.really.8.1.8-1",
      "purl": "pkg:deb/debian/python3-click@8.2.0+0.really.8.1.8-1",
      "bom-ref": "pkg:deb/debian/python3-click@8.2.0+0.really.8.1.8-1"
+    },
+    {
+     "type": "library",
+     "name": "python3-crc",
+     "version": "7.1.0-1",
+     "purl": "pkg:deb/debian/python3-crc@7.1.0-1",
+     "bom-ref": "pkg:deb/debian/python3-crc@7.1.0-1"
     },
     {
      "type": "library",
@@ -2839,6 +2891,19 @@
     },
     {
      "type": "application",
+     "name": "apicula",
+     "version": "0.17+dfsg1-1",
+     "purl": "pkg:generic/apicula?image=chipova/eda-base:1",
+     "bom-ref": "pkg:generic/apicula?image=chipova/eda-base:1",
+     "properties": [
+      {
+       "name": "chipova:reported-as",
+       "value": "0.17+dfsg1-1"
+      }
+     ]
+    },
+    {
+     "type": "application",
      "name": "debian",
      "version": "13.7",
      "purl": "pkg:generic/debian?image=chipova/eda-base:1",
@@ -2878,6 +2943,32 @@
     },
     {
      "type": "application",
+     "name": "nextpnr-ecp5",
+     "version": "\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.7-1+b3)",
+     "purl": "pkg:generic/nextpnr-ecp5?image=chipova/eda-base:1",
+     "bom-ref": "pkg:generic/nextpnr-ecp5?image=chipova/eda-base:1",
+     "properties": [
+      {
+       "name": "chipova:reported-as",
+       "value": "\"nextpnr-ecp5\" -- Next Generation Place and Route (Version 0.7-1+b3)"
+      }
+     ]
+    },
+    {
+     "type": "application",
+     "name": "nextpnr-gowin",
+     "version": "\"nextpnr-gowin\" -- Next Generation Place and Route (Version 0.7-1+b3)",
+     "purl": "pkg:generic/nextpnr-gowin?image=chipova/eda-base:1",
+     "bom-ref": "pkg:generic/nextpnr-gowin?image=chipova/eda-base:1",
+     "properties": [
+      {
+       "name": "chipova:reported-as",
+       "value": "\"nextpnr-gowin\" -- Next Generation Place and Route (Version 0.7-1+b3)"
+      }
+     ]
+    },
+    {
+     "type": "application",
      "name": "nextpnr-ice40",
      "version": "\"nextpnr-ice40\" -- Next Generation Place and Route (Version 0.7-1+b3)",
      "purl": "pkg:generic/nextpnr-ice40?image=chipova/eda-base:1",
@@ -2899,6 +2990,19 @@
       {
        "name": "chipova:reported-as",
        "value": "** ngspice-44.2 : Circuit level simulation program"
+      }
+     ]
+    },
+    {
+     "type": "application",
+     "name": "prjtrellis",
+     "version": "1.4-2+b5",
+     "purl": "pkg:generic/prjtrellis?image=chipova/eda-base:1",
+     "bom-ref": "pkg:generic/prjtrellis?image=chipova/eda-base:1",
+     "properties": [
+      {
+       "name": "chipova:reported-as",
+       "value": "1.4-2+b5"
       }
      ]
     },
@@ -2932,10 +3036,10 @@
   },
   {
    "type": "container",
-   "name": "chipova/eda-osic:2026.10-1",
-   "version": "2026.10-1",
-   "purl": "pkg:docker/chipova/eda-osic@2026.10-1",
-   "bom-ref": "pkg:docker/chipova/eda-osic@2026.10-1",
+   "name": "chipova/eda-osic:2026.10-3",
+   "version": "2026.10-3",
+   "purl": "pkg:docker/chipova/eda-osic@2026.10-3",
+   "bom-ref": "pkg:docker/chipova/eda-osic@2026.10-3",
    "properties": [
     {
      "name": "chipova:profile",
@@ -2943,7 +3047,7 @@
     },
     {
      "name": "chipova:image-id",
-     "value": "sha256:2ea382b419daeaadb1a16347fc4fbe9ae3581f72a2924e6ddfb58c5928728d74"
+     "value": "sha256:8fac2fecd678fac7a240d2e8d19510333eeec46cce689a1460cf0bf5209c4ecd"
     },
     {
      "name": "chipova:base",
@@ -13838,10 +13942,23 @@
     },
     {
      "type": "application",
+     "name": "ams-template",
+     "version": "2026.09 cf12265bd86581579184f281c2d6d59fe32c18a4",
+     "purl": "pkg:generic/ams-template?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/ams-template?image=chipova/eda-osic:2026.10-3",
+     "properties": [
+      {
+       "name": "chipova:reported-as",
+       "value": "2026.09 cf12265bd86581579184f281c2d6d59fe32c18a4"
+      }
+     ]
+    },
+    {
+     "type": "application",
      "name": "iverilog",
      "version": "Icarus Verilog version 14.0 (devel) (s20260301-579-g15d870a5-dirty)",
-     "purl": "pkg:generic/iverilog?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/iverilog?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/iverilog?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/iverilog?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
@@ -13853,8 +13970,8 @@
      "type": "application",
      "name": "klayout",
      "version": "KLayout 0.30.12",
-     "purl": "pkg:generic/klayout?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/klayout?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/klayout?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/klayout?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
@@ -13866,8 +13983,8 @@
      "type": "application",
      "name": "magic",
      "version": "8.3.685",
-     "purl": "pkg:generic/magic?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/magic?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/magic?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/magic?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
@@ -13879,8 +13996,8 @@
      "type": "application",
      "name": "netgen",
      "version": "Netgen 1.5.324 compiled on Thu Oct 15 02:27:49 PM CEST 2026",
-     "purl": "pkg:generic/netgen?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/netgen?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/netgen?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/netgen?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
@@ -13892,8 +14009,8 @@
      "type": "application",
      "name": "ngspice",
      "version": "** ngspice-47 : Circuit level simulation program",
-     "purl": "pkg:generic/ngspice?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/ngspice?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/ngspice?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/ngspice?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
@@ -13905,8 +14022,8 @@
      "type": "application",
      "name": "openroad",
      "version": "26Q4-407-geb14e40b7",
-     "purl": "pkg:generic/openroad?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/openroad?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/openroad?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/openroad?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
@@ -13917,13 +14034,13 @@
     {
      "type": "application",
      "name": "pdk-data",
-     "version": "open_pdks=1689ac3f2dc7 ihp-sg13g2=a49358cc0b20 sc=ihp130-d490cfb2e3258f71-b533d8db583765d2 lambdapdk-v0.2.22-967925fc5309e6d4",
-     "purl": "pkg:generic/pdk-data?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/pdk-data?image=chipova/eda-osic:2026.10-1",
+     "version": "open_pdks=1689ac3f2dc7 ihp-sg13g2=a49358cc0b20 sc=ihp130-d490cfb2e3258f71-b533d8db583765d2 lambdapdk-v0.2.22-967925fc5309e6d4 baked=gf180 ihp130 sky130",
+     "purl": "pkg:generic/pdk-data?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/pdk-data?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
-       "value": "open_pdks=1689ac3f2dc7 ihp-sg13g2=a49358cc0b20 sc=ihp130-d490cfb2e3258f71-b533d8db583765d2 lambdapdk-v0.2.22-967925fc5309e6d4"
+       "value": "open_pdks=1689ac3f2dc7 ihp-sg13g2=a49358cc0b20 sc=ihp130-d490cfb2e3258f71-b533d8db583765d2 lambdapdk-v0.2.22-967925fc5309e6d4 baked=gf180 ihp130 sky130"
       }
      ]
     },
@@ -13931,8 +14048,8 @@
      "type": "application",
      "name": "pdks",
      "version": "ciel gf180mcuD ihp-sg13cmos5l ihp-sg13g2 sky130A versions.txt",
-     "purl": "pkg:generic/pdks?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/pdks?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/pdks?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/pdks?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
@@ -13944,8 +14061,8 @@
      "type": "application",
      "name": "siliconcompiler",
      "version": "0.38.10",
-     "purl": "pkg:generic/siliconcompiler?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/siliconcompiler?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/siliconcompiler?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/siliconcompiler?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
@@ -13957,8 +14074,8 @@
      "type": "application",
      "name": "verilator",
      "version": "Verilator 5.052 2026-09-05 rev v5.052",
-     "purl": "pkg:generic/verilator?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/verilator?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/verilator?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/verilator?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",
@@ -13970,8 +14087,8 @@
      "type": "application",
      "name": "yosys",
      "version": "Yosys 0.70 (git sha1 28ba3cb92, Release, GNU /usr/bin/c++ 13.3.0)",
-     "purl": "pkg:generic/yosys?image=chipova/eda-osic:2026.10-1",
-     "bom-ref": "pkg:generic/yosys?image=chipova/eda-osic:2026.10-1",
+     "purl": "pkg:generic/yosys?image=chipova/eda-osic:2026.10-3",
+     "bom-ref": "pkg:generic/yosys?image=chipova/eda-osic:2026.10-3",
      "properties": [
       {
        "name": "chipova:reported-as",

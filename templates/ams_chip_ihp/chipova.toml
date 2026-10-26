@@ -1,0 +1,26 @@
+# Chipova project settings: what the runs use. Change them in the project's Settings,
+# or here (every snapshot keeps this file with the sources).
+
+[design]
+top = "counter_top"
+rtl = ["macros/counter/rtl/constants.sv", "macros/counter/rtl/counter.sv", "macros/counter/rtl/counter_top.sv"]
+sdc = ""
+clock_port = "clock_i"
+clock_period_ns = 20.0
+
+[sim]
+testbench = "counter_top_tb"
+sources = ["macros/counter/testbenches/verilog/counter_top_tb.sv"]
+
+[asic]
+pdk = "ihp130"
+
+[fpga]
+device = "up5k"
+package = "sg48"
+pcf = ""
+
+[ams]
+spice = ""
+cace = ""
+testbench = ""

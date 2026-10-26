@@ -1,0 +1,9 @@
+# xschemrc for opening (or netlisting, drawing) the CACE testbench templates outside CACE.
+# CACE itself doesn't read this file: it netlists each substituted testbench with the PDK's
+# xschemrc and adds the run folder (with a "primitive" copy of inverter.sym) to the search path.
+
+# The project's xschemrc (PDK settings + ../../xschem, where inverter.sym is).
+source [file dirname [file normalize [info script]]]/../../xschem/xschemrc
+
+# This folder.
+append XSCHEM_LIBRARY_PATH :[file dirname [file normalize [info script]]]

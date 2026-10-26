@@ -3,13 +3,17 @@ section on screen, and the dialogs they share."""
 
 from __future__ import annotations
 
+from typing import Callable
+
 import reflex as rx
 from reflex_ddns_auth.intent import Intent
 
 from chipova.components.common import BTN_AI, BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT, logo
+from chipova.components.phone import phone_workspace
 from chipova.components.together import call_button, identity, incoming_call, page_hooks, presence
 from chipova.jobs import flows
 from chipova.states.comments_state import CommentsState
+from chipova.states.desktop_state import DesktopState
 from chipova.states.ide import IdeState
 from chipova.states.review_state import ReviewState
 from chipova.states.room import ProjectRoom
@@ -21,11 +25,12 @@ SECTIONS = [
     ("layout", "layers", "Layout", "The GDS: layers, cells, measuring, notes"),
     ("signoff", "shield-check", "Signoff", "DRC, LVS, STA and the rest, with evidence"),
     ("release", "package", "Release", "Tape-out preparation packages and approvals"),
+    ("lab", "microscope", "Lab", "The package plan, and measurements of real chips"),
     ("agents", "bot", "Agents", "What AI agents proposed and did"),
     ("settings", "settings-2", "Settings", "Run settings, members, AI rules"),
 ]
 
-CATEGORY_TITLES = {"verify": "Verify", "implement": "Implement", "signoff": "Signoff", "ams": "Analog"}
+CATEGORY_TITLES = {"verify": "Verify", "implement": "Implement", "signoff": "Signoff", "ams": "Analog", "lab": "Lab"}
 
 
 def ai_button() -> rx.Component:
@@ -91,6 +96,14 @@ def top_bar() -> rx.Component:
         rx.el.div(
             rx.el.button(rx.icon("snowflake", class_name="w-3.5 h-3.5"), rx.el.span("Freeze", class_name="hidden lg:inline"), on_click=IdeState.open_snapshot, disabled=~IdeState.can_snapshot, id="freeze-button", title="Freeze the editors' text as a snapshot (what runs take)", class_name=BTN_OUTLINE),
             run_menu(),
+            rx.el.button(
+                rx.icon("pen-tool", class_name="w-3.5 h-3.5"), rx.el.span("Xschem", class_name="hidden lg:inline"),
+                on_click=[IdeState.set_view("code"), DesktopState.open(IdeState.active_path)],
+                disabled=~IdeState.can_edit,
+                id="xschem-button",
+                title="Draw schematics in Xschem: a desktop of the IIC-OSIC-TOOLS image with a copy of the project's files",
+                class_name=BTN_OUTLINE,
+            ),
             ai_button(),
             class_name="flex items-center gap-2",
         ),
@@ -284,21 +297,29 @@ def gone_page() -> rx.Component:
     )
 
 
-def workspace(sections: dict[str, rx.Component]) -> rx.Component:
-    """The page: ``sections`` maps each view to its content."""
+def workspace(sections: dict[str, Callable[[], rx.Component]]) -> rx.Component:
+    """The page: ``sections`` makes each view's content. A phone-sized window gets the phone
+    layout (components/phone.py) instead, never both (they share element ids)."""
+    code = sections["code"]()
+    desktop = rx.el.div(
+        top_bar(),
+        rx.el.div(
+            rail(),
+            rx.el.main(
+                rx.match(IdeState.view, ("code", code), *[(k, make()) for k, make in sections.items() if k != "code"], code),
+                class_name="flex-1 min-w-0 min-h-0 overflow-hidden",
+            ),
+            class_name="flex flex-1 min-h-0",
+        ),
+        class_name="h-screen flex flex-col bg-slate-950 text-slate-200 font-sans overflow-hidden",
+    )
+    phone = phone_workspace({k: make() for k, make in sections.items() if k != "code"}, SECTIONS, ai_button())
     return rx.cond(
         IdeState.missing | IdeState.denied | ProjectRoom.gone,
         gone_page(),
-        rx.el.div(
-            top_bar(),
-            rx.el.div(
-                rail(),
-                rx.el.main(
-                    rx.match(IdeState.view, *[(k, v) for k, v in sections.items()], sections["code"]),
-                    class_name="flex-1 min-w-0 min-h-0 overflow-hidden",
-                ),
-                class_name="flex flex-1 min-h-0",
-            ),
+        rx.fragment(
+            rx.window_event_listener(on_resize=IdeState.set_width),
+            rx.cond(IdeState.phone, phone, desktop),
             page_hooks(),
             incoming_call(),
             new_file_dialog(),
@@ -307,6 +328,5 @@ def workspace(sections: dict[str, rx.Component]) -> rx.Component:
             snapshot_dialog(),
             run_ask_dialog(),
             reject_dialog(),
-            class_name="h-screen flex flex-col bg-slate-950 text-slate-200 font-sans overflow-hidden",
         ),
     )

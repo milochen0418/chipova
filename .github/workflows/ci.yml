@@ -1,0 +1,43 @@
+# Unit tests, tests in real containers, and the E2E suites (Playwright), on every push and pull
+# request. The steps themselves are scripts/ci.sh, which runs the same way on your computer.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # A path dependency (pyproject.toml): the platform's library, next to this repository.
+      - name: reflex_ddns_auth
+        run: git clone --depth 1 https://github.com/milochen0418/reflex_ddns_auth.git ../reflex_ddns_auth
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Poetry and the environment
+        run: |
+          pipx install poetry==2.2.1
+          poetry env use python3.11
+          poetry install --no-interaction
+          poetry run playwright install --with-deps chromium
+
+      - name: Tests
+        run: scripts/ci.sh
+        env:
+          CI_OUTPUT: ${{ github.workspace }}/ci-output
+
+      - name: Screenshots and logs of the E2E suites
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-output
+          path: ci-output
+          retention-days: 7

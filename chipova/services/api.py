@@ -15,7 +15,10 @@ sign-in cookie. ``GET /api/runs/{id}/events`` streams a run's changes as server-
     POST /api/runs/{run_id}/approve          POST /api/projects/{id}/agent/propose
     POST /api/agent-actions/{id}/approve     POST /api/agent-actions/{id}/reject
     POST /api/projects/{id}/reviews          POST /api/projects/{id}/releases
-    GET  /api/projects/{id}/signoff
+    GET  /api/projects/{id}/signoff          POST /api/runs/{run_id}/program
+    POST /api/projects/{id}/lab  (an OpenHTF record)  GET /api/projects/{id}/lab
+    board helpers (:mod:`chipova.services.boards`): GET /api/boards, POST /api/boards/hello,
+    GET /api/boards/next, POST /api/boards/jobs/{job_id}
 """
 
 from __future__ import annotations
@@ -36,7 +39,7 @@ from chipova import ids, paths
 from chipova.domain import machines
 from chipova.domain.models import Artifact, Project, Revision, Run, RunStep, SignoffCheck
 from chipova.jobs import engine, flows
-from chipova.services import artifacts, projects, proposals, releases, revisions, reviews, signoff
+from chipova.services import artifacts, boards, lab, projects, proposals, releases, revisions, reviews, signoff
 from chipova.services.actors import Actor, agent
 
 TOKEN_DAYS = 30
@@ -136,6 +139,27 @@ class ReviewIn(BaseModel):
 class ReleaseIn(BaseModel):
     revision_id: str = ""
     title: str = ""
+
+
+class HelperHello(BaseModel):
+    name: str = ""
+    boards: list[str] = Field(default_factory=list)
+    loader: str = ""
+
+
+class BoardReport(BaseModel):
+    status: str
+    log: str = ""
+
+
+class LabRecord(BaseModel):
+    snapshot: str = ""  # the snapshot the chips were made from ("" = the latest)
+    record: dict[str, Any]  # an OpenHTF test record (its JSON output)
+
+
+class ProgramBoard(BaseModel):
+    helper_id: str
+    board: str
 
 
 class ProjectOut(BaseModel):
@@ -323,6 +347,48 @@ async def get_signoff(request: Request, actor: Actor):
     return SignoffOut(revision_id=rev.id, checks=signoff.checklist(pid, rev.id))
 
 
+async def add_lab_record(request: Request, actor: Actor, body: LabRecord):
+    return lab.add(_pid(request), body.snapshot, body.record, actor)
+
+
+async def get_lab(request: Request, actor: Actor):
+    pid = _pid(request)
+    projects.require(pid, actor, "view")
+    return {"results": lab.results(pid), "compare": lab.compare(pid)}
+
+
+async def helper_hello(request: Request, actor: Actor, body: HelperHello):
+    return boards.hello(actor, body.name, body.boards, body.loader)
+
+
+async def my_helpers(request: Request, actor: Actor):
+    return {"helpers": boards.helpers_of(actor.user)}
+
+
+async def helper_next(request: Request, actor: Actor):
+    """A board helper waiting for work (up to ``wait`` seconds, at most 30)."""
+    helper_id = request.query_params.get("helper", "")
+    try:
+        wait = min(30.0, max(0.0, float(request.query_params.get("wait", "0") or 0)))
+    except ValueError:
+        wait = 0.0
+    end = time.time() + wait
+    while True:
+        work = boards.take(helper_id, actor)
+        if work is not None or time.time() >= end or await request.is_disconnected():
+            return {"job": work}
+        await asyncio.sleep(1.0)
+
+
+async def helper_report(request: Request, actor: Actor, body: BoardReport):
+    return boards.report(request.path_params.get("job_id", ""), actor, body.status, body.log)
+
+
+async def program_board(request: Request, actor: Actor, body: ProgramBoard):
+    run = _run(request, actor)
+    return boards.request(run.project_id, run.id, body.helper_id, body.board, actor)
+
+
 ROUTES = [
     ("/api/projects", "GET", endpoint(list_projects)),
     ("/api/projects", "POST", endpoint(create_project, CreateProject)),
@@ -341,6 +407,13 @@ ROUTES = [
     ("/api/projects/{project_id}/reviews", "POST", endpoint(add_review, ReviewIn)),
     ("/api/projects/{project_id}/releases", "POST", endpoint(add_release, ReleaseIn)),
     ("/api/projects/{project_id}/signoff", "GET", endpoint(get_signoff)),
+    ("/api/projects/{project_id}/lab", "POST", endpoint(add_lab_record, LabRecord)),
+    ("/api/projects/{project_id}/lab", "GET", endpoint(get_lab)),
+    ("/api/runs/{run_id}/program", "POST", endpoint(program_board, ProgramBoard)),
+    ("/api/boards", "GET", endpoint(my_helpers)),
+    ("/api/boards/hello", "POST", endpoint(helper_hello, HelperHello)),
+    ("/api/boards/next", "GET", endpoint(helper_next)),
+    ("/api/boards/jobs/{job_id}", "POST", endpoint(helper_report, BoardReport)),
 ]
 
 

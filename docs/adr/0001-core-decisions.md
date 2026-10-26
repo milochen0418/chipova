@@ -40,8 +40,9 @@ rejected by the blueprint and unworkable for concurrent typing.
 **Consequences**: the server can edit documents itself, as one more Yjs client: an accepted AI
 proposal or a restored snapshot reaches everyone's editor as an edit, merged with their typing.
 A crash loses no typing (the log). Rooms live in one process, so co-editing doesn't span several
-backends. The browser loads `yjs@13.6.18` and `y-websocket@2.0.4` from esm.sh, and Monaco from
-jsDelivr, so editing needs internet access; bundling them is the fix if that matters.
+backends. Yjs 13.6.18 and y-websocket 2.0.4 are bundled into the page and Monaco 0.55.1's files
+are served by Chipova itself (`components/offline.py`), so editing needs no internet, only the
+network to Chipova (e2e:`offline_lan` blocks every other host).
 
 ## 3. Snapshots are git commits named by their content
 
@@ -77,11 +78,12 @@ fixed images, argv lists, and the isolation flags above. Runs execute on the sam
 ## 5. Two tool images, both pinned
 
 **Decision**: `chipova/eda-base:1`, built here from Debian 13 packages on a base pinned by digest
-(Icarus, Verilator, Yosys, nextpnr-ice40, IceStorm, ngspice, Graphviz: about 1.2 GB, native on Intel
-and ARM), for lint, simulation, synthesis, FPGA and SPICE; and `chipova/eda-osic:2026.10-1`, the
-IIC-OSIC-TOOLS 2026.10 image pinned by digest plus the PDK data SiliconCompiler fetches (so Build
-ASIC runs offline), for RTL → GDSII, DRC and LVS. Each tool's version is read from the image when it
-is installed and written into every run's manifest.
+(Icarus, Verilator, Yosys, nextpnr for iCE40, ECP5 and Gowin, IceStorm, Trellis, apicula, ngspice,
+Graphviz: about 1.4 GB, native on Intel and ARM), for lint, simulation, synthesis, FPGA and SPICE;
+and `chipova/eda-osic:2026.10-3`, the IIC-OSIC-TOOLS 2026.10 image pinned by digest plus the PDK
+data SiliconCompiler fetches for SKY130, IHP SG13G2 and GF180 (so Build ASIC runs offline), for
+RTL → GDSII, the layout checks, Xschem, CACE and the Xschem desktops. Each tool's version is read
+from the image when it is installed and written into every run's manifest.
 
 **Alternatives**: only IIC-OSIC-TOOLS (17 GB on disk before anyone can lint a file); building every
 tool from source (hours, and versions we would have to maintain); unpinned `latest` tags (not
@@ -127,8 +129,8 @@ checklist plus an approval by someone else; FOUNDRY_READY is only the owner's wr
 **Alternatives**: storing check results (they go stale when runs change).
 
 **Consequences**: there is no way for a check to read PASS without a passing run of that snapshot;
-a check with no flow is NOT_CONFIGURED; a check that can't run here (no deck for the PDK, no CACE)
-is BLOCKED and says why.
+a check with no flow is NOT_CONFIGURED; a check that can't run here (no deck or corners for the
+PDK, no CACE datasheet) is BLOCKED and says why.
 
 ## 9. AI agents come through the platform's AI Hub, and only propose
 
@@ -147,10 +149,42 @@ the Yjs documents directly.
 model only sees what the person it works for may see. Chipova has no chat of its own: the **AI**
 button opens the hub's assistant on the project.
 
+## 10. Xschem runs in a desktop container, shown through noVNC
+
+**Decision**: the **Xschem** button starts a container of the IIC-OSIC image per person and
+project (its own VNC desktop, a copy of the project's files) and shows the image's own noVNC in the
+page; the backend proxies noVNC and bridges its WebSocket to the desktop after checking a ticket
+signed for the person. **Save** copies the changed text files back into the co-edited documents.
+
+**Alternatives**: a schematic editor written for the browser (it would have to read and write
+Xschem's format with the PDKs' symbols); one shared desktop per project (people would fight over
+one mouse).
+
+**Consequences**: the real Xschem with the PDKs' libraries, nothing to install; editing a schematic
+is one person's at a time, and their changes reach the others on Save, where a file changed in
+both places is left alone and named. Each desktop costs 2 CPUs and 2 GB while it runs; an idle one
+is removed after 20 minutes.
+
+## 11. Boards are programmed by a helper on the person's computer
+
+**Decision**: Chipova never touches USB. A **board helper** (`scripts/board_helper.py`, Python's
+standard library and openFPGALoader) runs on the computer the board is plugged into, with a token
+of its owner: it asks Chipova for jobs (long polling, outbound only), downloads the bitstream
+through a signed link, checks its SHA-256 and programs the board, then reports.
+
+**Alternatives**: passing USB devices into the app's container (the App Store's apps run on a
+server, the boards sit on people's desks); WebUSB from the page (not every browser, and not
+openFPGALoader's cable drivers).
+
+**Consequences**: it works through NAT and firewalls; a helper only receives what its own owner
+sent it, from projects where they may program boards; agents never may (PROGRAM_BOARD is never
+theirs).
+
 ## Revisit when
 
 - more than one backend is needed (co-editing rooms and the queue are in one process; the data is
   local): Hocuspocus or a Redis-backed relay, PostgreSQL, S3, a broker;
 - the App Store can't hand out the Docker socket, or runs must go to other machines: a remote runner
   speaking the same JobSpec;
-- editing must work without internet: bundle Monaco and Yjs into the app.
+- the Xschem desktops must scale past one computer: they are containers on the same Docker
+  daemon, 2 CPUs and 2 GB each.

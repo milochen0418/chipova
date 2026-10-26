@@ -20,9 +20,21 @@ Built with [Reflex](https://reflex.dev/) for the [re-ddns](https://github.com/mi
 |:---:|:---:|
 | ![Build ASIC](docs/images/asic.png) | ![Layout](docs/images/layout.png) |
 
-| Signoff: each check from its own run | A release held at its gate |
+| Signoff: each check from its own run (timing, parasitics, IR, antenna too) | A release held at its gate |
 |:---:|:---:|
 | ![Signoff](docs/images/signoff.png) | ![Release](docs/images/release.png) |
+
+| Xschem in the browser, on the project's files | An inverter checked at every corner (CACE) |
+|:---:|:---:|
+| ![Xschem](docs/images/xschem.png) | ![Corners](docs/images/corners.png) |
+
+| A whole IHP chip built from JKU's template (Full chip), on the Layout page |
+|:---:|
+| ![Chip](docs/images/chip.png) |
+
+| The Lab: package plan and chips from the bench | On a phone |
+|:---:|:---:|
+| ![Lab](docs/images/lab.png) | <img src="docs/images/phone.png" alt="Phone" width="260"> |
 
 | SPICE: an inverter's curves | Everything the AI did |
 |:---:|:---:|
@@ -37,12 +49,13 @@ Built with [Reflex](https://reflex.dev/) for the [re-ddns](https://github.com/mi
 ## 🌟 Features
 
 **Projects**
-- Four templates: **Heartbeat** (a counter for RTL to GDSII, with a self-checking testbench and a clock constraint), **Blinky** (an iCEBreaker board's LED and button, iCE40 UP5K), a **CMOS inverter** (a SPICE deck) and a **blank** design. Each comes with its first snapshot.
-- A project's settings (top module, testbench, PDK, FPGA part and pin file, SPICE deck) are in its `chipova.toml`, edited as a file or as a form on the Settings page; two people saving the form at once don't overwrite each other: the second is told.
+- Nine templates: **Heartbeat** (a counter for RTL to GDSII, with a self-checking testbench, a clock constraint, a QFN-16 package plan and a bench test), **Blinky** for three boards (iCEBreaker iCE40, ULX3S ECP5, Tang Nano 9K Gowin), a **CMOS inverter** (a SPICE deck), the **inverter across corners** on SKY130 and on IHP SG13G2 (Xschem schematics and a CACE datasheet), a whole **analog/mixed-signal chip** on IHP SG13G2 (JKU's chip template: a digital and an analog macro in a 32-pad padframe) and a **blank** design. Each comes with its first snapshot.
+- A project's settings (top module, testbench, PDK, FPGA family, part and pin file, SPICE deck, Xschem testbench, CACE datasheet) are in its `chipova.toml`, edited as a file or as a form on the Settings page; two people saving the form at once don't overwrite each other: the second is told.
 - **Who may do what**: anyone with the link may edit (the default), only view, or nobody but the members. Members are **Owner**, **Editor**, **Reviewer** or **Viewer**; someone without access can **ask for access**, and the owner says yes with a role.
 
 **Together**
-- The editor is Monaco (VS Code's). Everyone in a file types at once and sees the same text, with each other's carets and selections in their colours and names (Yjs). A dropped connection catches up when it comes back; edits are kept on the server as they are typed.
+- The editor is Monaco (VS Code's). Everyone in a file types at once and sees the same text, with each other's carets and selections in their colours and names (Yjs). A dropped connection catches up when it comes back; edits are kept on the server as they are typed. Monaco and Yjs come from Chipova's own server: the page needs no internet, only the network to Chipova.
+- **Xschem in the browser**: the **Xschem** button opens the file in one's own Xschem desktop (IIC-OSIC-TOOLS, shown through noVNC in the page) with a copy of the project's files and the project's PDK; **Save** brings the changed files back to the project for everyone (a file changed in both places is left alone and named), **Close** removes the desktop.
 - Who is here, who has which file open, comments on a line (resolved when done), the project's activity, and **Call everyone** (rings everyone in the project through an installed call app).
 
 **Snapshots** (a run never uses half-typed text)
@@ -50,9 +63,12 @@ Built with [Reflex](https://reflex.dev/) for the [re-ddns](https://github.com/mi
 - Each snapshot shows what it changed from another one, its runs, and its **reviews** (approved, changes requested, commented): a review belongs to its snapshot and never carries over to a later one. **Put these files back** restores a snapshot's files for everyone, as a new snapshot.
 
 **Runs**: real tools in sealed containers
-- **Lint** (Verilator `--lint-only -Wall`, and Icarus elaboration), **Simulate** (Icarus or Verilator; a testbench line starting with `FAIL` or `ERROR` fails the run), **Synthesize** (Yosys: cell counts, a gate-level netlist, the RTL schematic), **Build FPGA** (Yosys `synth_ice40`, nextpnr against the pin file, icepack: a bitstream and its Fmax), **SPICE** (ngspice: its `.meas` results and the tables `wrdata` writes, as charts).
-- **Build ASIC**: SiliconCompiler 0.38.10 (its current `Design` / `ASIC` API) drives Yosys, OpenROAD and KLayout through synthesis, floorplan, placement, clock tree, routing and GDS on SkyWater 130 or IHP SG13G2, offline. Its flowgraph's 23 steps show live, each with its time, its numbers (cell area, slack, DRVs…) and its log.
-- **DRC** (KLayout's `sky130A_mr.drc` deck and Magic) and **LVS** (Magic's extraction and Netgen) check the full layout of a Build ASIC run.
+- **Lint** (Verilator `--lint-only -Wall`, and Icarus elaboration), **Simulate** (Icarus or Verilator; a testbench line starting with `FAIL` or `ERROR` fails the run), **Synthesize** (Yosys: cell counts, a gate-level netlist, the RTL schematic), **Build FPGA** for Lattice iCE40 (`synth_ice40`, nextpnr, icepack), Lattice ECP5 (`synth_ecp5`, nextpnr-ecp5, ecppack) or Gowin GW1N (`synth_gowin`, nextpnr-gowin, apicula's gowin_pack): a bitstream and its Fmax per clock.
+- **Analog**: **SPICE** (a deck in ngspice: its `.meas` results and the tables `wrdata` writes, as charts); **Xschem simulation** (Xschem netlists a testbench schematic with the PDK's devices, ngspice simulates it with the PDK's settings); **Corners (CACE)**: CACE 2.11 simulates every parameter of a datasheet across process corners, supplies and temperatures and checks each result against its limits; the run shows each spec's min / typical / max, which conditions broke a limit, CACE's plots and the schematics.
+- **Build ASIC**: SiliconCompiler 0.38.10 (its current `Design` / `ASIC` API) drives Yosys, OpenROAD and KLayout through synthesis, floorplan, placement, clock tree, routing and GDS on SkyWater 130, IHP SG13G2 or GF180MCU, offline. Its flowgraph's 23 steps show live, each with its time, its numbers (cell area, slack, DRVs…) and its log.
+- **DRC** and **LVS** check the full layout of a Build ASIC run with each PDK's own open decks: SKY130 (KLayout `sky130A_mr.drc` and Magic; Magic + Netgen), IHP SG13G2 (IHP's KLayout DRC, main rules, and Magic; IHP's KLayout LVS) and GF180MCU (the open_pdks KLayout deck; Magic + Netgen). Metal density is shown beside DRC as information: it holds for a whole chip after fill.
+- **Full chip** (projects from the IHP chip template): the template in the image, with the project's sources put over it, is built from scratch with its own make targets: the bondpad and logos, the counter (LibreLane) and the inverter (KLayout and Magic DRC, LVS, PEX, CACE), then the chip with LibreLane's chip flow (padframe, power grid, placement and routing, seal ring, gate-level LVS), Magic DRC of the whole chip and its cocotb simulations. The chip's GDS opens on the Layout page.
+- **Timing, parasitics, antenna, power/IR** on the routed design: OpenRCX extracts parasitics at each RC corner with the PDK's rules, OpenSTA times every corner with them (setup, hold, slew and capacitance), OpenROAD checks the antenna rules, and PDNSim computes the static IR drop of the power grid as routed (limit 5 % of VDD), with the power at each corner.
 - Every run is a Docker container with **no network**, as an unprivileged user, all capabilities dropped, with CPU, memory, process and time limits; the sources are read-only. Its states are real: Created, Waiting for approval, Queued (with its place), Running, Succeeded, Failed, Canceled, Timed out.
 - A run's **problems** (tool, file, line) go to the editor as markers, and a click goes to the line. Its **artifacts** (logs, VCD, netlists, GDS, bitstreams, reports) download with their SHA-256 (checked again on demand), through links signed for the person. Its **manifest** says what went in and came out: the snapshot and its files' hashes, the settings, the image id and the tools' versions, each step's command, the limits, the artifacts' hashes. **Compare** lines two runs up: what went in, their numbers (cells, area, slack, Fmax…), what came out.
 
@@ -67,23 +83,30 @@ Built with [Reflex](https://reflex.dev/) for the [re-ddns](https://github.com/mi
 - Every tool call, reading ones too, and every refusal is in the project's audit log, on the Agents page.
 - Scripts and other agents can use the **REST API** (projects, snapshots, runs with server-sent events, artifacts, proposals, reviews, releases, signoff) with a token made on the Agents page.
 
+**Boards and the lab**
+- **Program the board**: a bitstream goes to a board through the person's own **board helper** (`scripts/board_helper.py`, run on the computer the board is plugged into): it asks Chipova for jobs, downloads the bitstream through a signed link, checks its SHA-256 and runs openFPGALoader; the run shows how it went.
+- **Package plan**: `package/package.toml` and `package/pins.csv` say which pin of which package each port goes to; **Check the package plan** checks it against the design's ports (every port bit on exactly one pin, pins within the package, power and ground) and draws the bond diagram.
+- **Lab**: test records from the bench (OpenHTF's JSON output, one per chip) dropped on the Lab page show each measurement beside the spec (`lab/spec.csv`) and the design's own values, chip by chip.
+
 **Signoff and release**
-- The **Signoff** page lists each check of a snapshot (lint, simulation, FPGA timing, DRC, LVS, STA, PEX, power/IR, antenna, AMS corners, full chip) as **PASS**, **FAIL**, **RUNNING**, **NOT RUN**, **BLOCKED** (it can't run here, and says why) or **NOT CONFIGURED**, each from a run of that same snapshot. A check that didn't run is never shown as passed.
+- The **Signoff** page lists each check of a snapshot (lint, simulation, FPGA timing, DRC, LVS, STA, PEX, power/IR, antenna, AMS corners, package & pinout, full chip) as **PASS**, **FAIL**, **RUNNING**, **NOT RUN**, **BLOCKED** (it can't run here, and says why) or **NOT CONFIGURED**, each from a run of that same snapshot. A check that didn't run is never shown as passed. **Run checks** starts every check the snapshot can run.
 - A **waiver** needs a reason and someone other than whoever asked for it; a waived check shows as **WAIVED**, never as PASS.
 - A **release** of a snapshot goes Draft → In review → Approved or Rejected. It can't be approved while a required check isn't PASS or WAIVED, nor by whoever asked for it; what is missing is listed. Its **package** (a zip) holds the sources, the runs' outputs, the checklist, the approvals and a manifest of hashes. **Foundry ready** is only ever the owner's own written statement.
 
 **Tools & settings** (`/settings`)
-- The tool images (installed here, with progress): **Chipova EDA base** (Debian 13's packages, built here, about 1.2 GB) and **IIC-OSIC-TOOLS 2026.10** (JKU's image pinned by digest, plus the PDK data SiliconCompiler needs: about 4 GB to download, 17 GB on disk). Each tool's version is read from the image and recorded with every run. The PDK registry says what each PDK can do here.
+- The tool images (installed here, with progress): **Chipova EDA base** (Debian 13's packages, built here, about 1.4 GB) and **IIC-OSIC-TOOLS 2026.10** (JKU's image pinned by digest, plus the PDK data SiliconCompiler needs: about 4 GB to download, 17 GB on disk). Each tool's version is read from the image and recorded with every run. The PDK registry says what each PDK can do here.
+
+**On a phone**
+- Below 768 px wide, the workspace becomes one column with tabs: the files (read, comment on a line), the runs (approve one an AI asked for), the AI's proposals (review, accept, reject), and the other pages stacked.
 
 ## ⚠️ Limits
 
 What Chipova does not do (yet), so nobody has to find out the hard way:
 
-- **Not a foundry signoff**, and no commercial PDKs. DRC and LVS are set up for **SkyWater 130 only**; IHP SG13G2 builds GDS but has no DRC/LVS here, and GF180 isn't set up. **PEX, power/IR, antenna/DFM and full-chip checks are NOT CONFIGURED**: the Build ASIC run's own estimates are shown beside them as information, not as checks.
-- **Analog**: SPICE decks with ngspice only. No schematic editing (Xschem) in the browser, no PVT corners (CACE: the AMS corners check is BLOCKED), no IHP AMS chip template flow, no padframe, bond plan or top-level assembly.
-- **FPGA**: Lattice iCE40 only, and Chipova doesn't program boards.
-- **Post-silicon** (OpenHTF tests, package planning): not built.
-- The browser loads the editor (Monaco, from jsDelivr) and Yjs (from esm.sh): **editing needs internet access**.
+- **Not a foundry signoff**, and no commercial PDKs: the checks are the PDKs' own open decks, run as their READMEs say. Only small designs were checked (the Heartbeat and a small bus design); the IR drop is static and vectorless (no VCD-based or dynamic IR), with ideal sources at the pins (no package or pads); IHP has one OpenRCX deck, so its parasitics have one RC corner; GF180's PDN uses lambdapdk's via resistance (its tech LEF has none on the cut layers); DFM rules beyond antenna and density are not checked; Magic's GF180 DRC isn't run (its tech file is for the 11 kÅ top metal, Build ASIC makes 9 kÅ).
+- **Full chip**: the check never reads PASS yet: the template's top-level LVS (layout against its schematic) isn't finished upstream, and its logo-and-fill step and the DRC of the filled chip need more memory than a run gets here (they were killed at 3 GB); what runs is checked, and a failure is FAIL. It works on the IHP chip template only.
+- **Analog**: CACE checks schematics only (no layout, so no CACE DRC/LVS/PEX parameters) and no Monte Carlo; the limits in the corner templates are examples. Xschem desktops need the IIC-OSIC-TOOLS image and use 2 CPUs and 2 GB each.
+- **Boards and instruments**: programming a board needs the board helper running on the computer it is plugged into (it was checked with `--dry-run` and up to openFPGALoader's own hardware access, without a real board here); Chipova reads OpenHTF records but doesn't drive instruments itself.
 - **One computer**: the data is SQLite and files in one folder, runs are containers on the same Docker daemon, and the app needs that daemon's socket (it can start containers on the host): install it only where that is acceptable.
 - **Guests** (without signing in) are known by their browser: clearing its storage loses what a guest owned.
 - Each run's manifest records the image id, the tools' versions, the commands and the artifacts' hashes, but there is **no SPDX/CycloneDX SBOM per run**; [docs/sbom/](docs/sbom/) has one for the app itself.

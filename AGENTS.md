@@ -60,6 +60,7 @@ Unit and integration tests (pytest; `-m docker` ones start real containers):
 ```bash
 poetry run pytest -m "not docker"
 poetry run pytest -m docker
+scripts/ci.sh            # what CI runs (STAGES="unit docker", SUITES="…" to pick; see its header)
 ```
 
 E2E suites live under `testcases/<suite_name>/run_test.py`. Do **not** run Playwright suites by
@@ -92,6 +93,8 @@ Optional environment variables (see `testcases/README.md`):
   with no flow is NOT_CONFIGURED, one that can't run here is BLOCKED with why. Never mark anything
   FOUNDRY_READY automatically.
 - **Runs only read snapshots**, never the live editors.
+- **Edit callees before callers** while a re-ddns dev install hot-reloads this checkout: a caller
+  saved before the function it calls exists crashes the live app until the next save.
 
 ## 6) Expectations when acting as an agent
 

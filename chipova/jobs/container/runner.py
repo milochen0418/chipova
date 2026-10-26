@@ -14,12 +14,15 @@ and to this script's output, between marker lines the app follows live:
     @@chipova step-end <id> <exit code> <seconds>
     @@chipova step-skip <id>
 
-A step that fails (and isn't allowed to) skips the ones after it. /work/out/result.json says how
-each went; the script's own exit code is 0 only when every required step succeeded.
+A step that fails (and isn't allowed to) skips the ones after it; a step that names the steps it
+``needs`` runs when those succeeded, and only then, whatever else failed. A step the kernel killed
+for memory is said to be so. /work/out/result.json says how each went; the script's own exit code
+is 0 only when every required step succeeded.
 """
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -34,6 +37,19 @@ def mark(*parts):
     sys.stdout.flush()
 
 
+def oom_kills():
+    """How many processes the container's memory limit has killed so far (cgroup v2), or None."""
+    try:
+        with open("/sys/fs/cgroup/memory.events", encoding="utf-8") as fh:
+            for line in fh:
+                key, _, value = line.partition(" ")
+                if key == "oom_kill":
+                    return int(value)
+    except (OSError, ValueError):
+        pass
+    return None
+
+
 def run_step(step, base_env):
     cwd = step.get("cwd") or OUT
     os.makedirs(cwd, exist_ok=True)
@@ -44,25 +60,31 @@ def run_step(step, base_env):
     started = time.time()
     mark("step-start", step["id"], round(started, 3))
     timed_out = []
+    kills = oom_kills()
     with open(os.path.join(log_dir, "stdout.log"), "wb") as log:
         try:
+            # Its own process group: a timeout stops what it started too (xvfb-run's Xvfb would
+            # otherwise keep the output pipe open, and this loop wait for ever).
             proc = subprocess.Popen(
                 step["argv"], cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True,
             )
         except OSError as e:
             line = ("cannot start %s: %s\n" % (step["argv"][0], e)).encode()
             log.write(line)
             sys.stdout.buffer.write(line)
             mark("step-end", step["id"], 127, round(time.time() - started, 3))
-            return 127, started, time.time()
+            return 127, started, time.time(), False
 
         def kill():
             timed_out.append(True)
             try:
-                proc.kill()
+                os.killpg(proc.pid, signal.SIGKILL)
             except OSError:
-                pass
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
 
         timer = threading.Timer(float(step.get("timeout") or 3600), kill)
         timer.daemon = True
@@ -78,9 +100,14 @@ def run_step(step, base_env):
             log.write(note)
             sys.stdout.buffer.write(note)
             rc = 124
+        oom = kills is not None and (oom_kills() or 0) > kills
+        if oom:
+            note = ("\nstep %s ran out of memory: the run's memory limit stopped it\n" % step["id"]).encode()
+            log.write(note)
+            sys.stdout.buffer.write(note)
     ended = time.time()
     mark("step-end", step["id"], rc, round(ended - started, 3))
-    return rc, started, ended
+    return rc, started, ended, oom
 
 
 def main():
@@ -103,16 +130,23 @@ def main():
     os.makedirs(base_env["TMPDIR"], exist_ok=True)
     results = []
     failed = False
+    done = {}  # step id -> SUCCEEDED | FAILED | SKIPPED
     for step in job["steps"]:
-        if failed:
+        needs = step.get("needs")
+        missing = [n for n in needs if done.get(n) != "SUCCEEDED"] if needs is not None else []
+        if missing or (needs is None and failed):
+            why = ("it needs %s, which didn't succeed" % ", ".join(missing)) if missing else "a step before it failed"
+            sys.stdout.write("\nstep %s skipped: %s\n" % (step["id"], why))
             mark("step-skip", step["id"])
-            results.append({"id": step["id"], "status": "SKIPPED"})
+            results.append({"id": step["id"], "status": "SKIPPED", "why": why})
+            done[step["id"]] = "SKIPPED"
             continue
-        rc, started, ended = run_step(step, base_env)
+        rc, started, ended, oom = run_step(step, base_env)
         ok = rc == 0
+        done[step["id"]] = "SUCCEEDED" if ok else "FAILED"
         results.append({
-            "id": step["id"], "status": "SUCCEEDED" if ok else "FAILED", "exit_code": rc,
-            "started": started, "ended": ended,
+            "id": step["id"], "status": done[step["id"]], "exit_code": rc,
+            "started": started, "ended": ended, **({"out_of_memory": True} if oom else {}),
         })
         if not ok and not step.get("allow_fail"):
             failed = True

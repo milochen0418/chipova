@@ -12,6 +12,7 @@ from chipova.jobs import flows
 from chipova.states.agents_state import AgentsState
 from chipova.states.comments_state import CommentsState
 from chipova.states.ide import IdeState
+from chipova.states.lab_state import LabState
 from chipova.states.review_state import ReviewState
 from chipova.states.room import ProjectRoom
 from chipova.states.runs_state import RunState
@@ -23,7 +24,7 @@ def page(title: str, sub: str, actions: rx.Component, body: rx.Component, page_i
         rx.el.div(section_title(title, sub), actions, class_name="flex flex-wrap items-end justify-between gap-3"),
         body,
         id=page_id,
-        class_name="flex flex-col gap-4 h-full p-5 overflow-hidden",
+        class_name="flex flex-col gap-4 p-3 md:p-5 md:h-full md:overflow-hidden",
     )
 
 
@@ -100,7 +101,7 @@ def implement_view() -> rx.Component:
     picture = rx.cond(
         RunState.picture != "",
         rx.el.div(
-            rx.el.span(rx.cond(RunState.flow == "asic_sc", "Layout (KLayout)", "RTL schematic (Yosys)"), class_name=LABEL),
+            rx.el.span(rx.match(RunState.flow, ("asic_sc", "Layout (KLayout)"), ("ams_xschem", "Schematic (Xschem)"), ("ams_cace", "Schematic (Xschem)"), "RTL schematic (Yosys)"), class_name=LABEL),
             rx.el.div(rx.image(src=backend_url(RunState.picture), alt="schematic", class_name="max-w-full bg-white rounded"), class_name=f"{PANEL} p-3 overflow-auto max-h-[480px]"),
             class_name="flex flex-col gap-2",
         ),
@@ -113,7 +114,15 @@ def implement_view() -> rx.Component:
             class_name="flex flex-col gap-2",
         ),
     )
-    buttons = [flow_button("synth_yosys", "Synthesize", "binary"), flow_button("fpga_ice40", "Build FPGA", "grid-3x3"), flow_button("ams_ngspice", "SPICE", "activity")]
+    # Build FPGA runs the flow of the family the project's settings name.
+    fpga = rx.match(
+        IdeState.fpga_family,
+        ("ecp5", flow_button("fpga_ecp5", "Build FPGA", "grid-3x3")),
+        ("gowin", flow_button("fpga_gowin", "Build FPGA", "grid-3x3")),
+        flow_button("fpga_ice40", "Build FPGA", "grid-3x3"),
+    )
+    buttons = [flow_button("synth_yosys", "Synthesize", "binary"), fpga, flow_button("ams_ngspice", "SPICE", "activity"),
+               flow_button("ams_xschem", "Xschem simulation", "zap"), flow_button("ams_cace", "Corners (CACE)", "thermometer")]
     if flows.get("asic_sc"):
         buttons.append(flow_button("asic_sc", "Build ASIC", "cpu"))
     return page(
@@ -125,6 +134,119 @@ def implement_view() -> rx.Component:
             run_details(rx.fragment(cells, picture, rx.cond(RunState.charts.length() > 0, rx.el.div(rx.el.span("Results", class_name=LABEL), rx.el.div(rx.foreach(RunState.charts, chart), class_name="grid lg:grid-cols-2 gap-3"), class_name="flex flex-col gap-2")))),
         ),
         "implement-view",
+    )
+
+
+# ------------------------------------------------------------ Lab
+
+
+def lab_record(r) -> rx.Component:  # noqa: ANN001
+    return rx.el.div(
+        rx.el.div(
+            status_badge(r.outcome, small=True),
+            rx.el.code(r.dut, class_name="text-sm text-slate-100"),
+            rx.cond(r.simulated, rx.el.span("simulated: measured nothing", class_name="text-[10px] px-1.5 rounded border border-amber-700/50 text-amber-300")),
+            rx.el.span(r.test, " · ", r.station, " · snapshot ", rx.el.code(r.snapshot, class_name="text-teal-300"), " · ", r.by, " · ", ago(r.at), class_name="text-[11px] text-slate-500"),
+            class_name="flex flex-wrap items-center gap-2",
+        ),
+        rx.el.div(
+            rx.foreach(r.measures, lambda m: rx.el.span(
+                rx.el.code(m.name, class_name="text-slate-400"), " = ", rx.el.span(m.value, " ", m.unit, class_name="text-slate-100"),
+                rx.cond(m.limits != "", rx.el.span(" (", m.limits, ")", class_name="text-slate-500")),
+                class_name=rx.cond(m.outcome == "PASS", "text-xs", "text-xs text-rose-300"),
+            )),
+            class_name="flex flex-wrap gap-x-4 gap-y-1",
+        ),
+        custom_attrs={"data-lab-record": r.dut, "data-lab-outcome": r.outcome},
+        class_name=f"{PANEL} p-3 flex flex-col gap-2",
+    )
+
+
+def lab_view() -> rx.Component:
+    bond = rx.cond(
+        (RunState.flow == "package_check") & (RunState.picture != ""),
+        rx.el.div(
+            rx.el.span("Bond diagram (from the plan; not an assembly drawing)", class_name=LABEL),
+            rx.el.div(rx.image(src=backend_url(RunState.picture), alt="bond diagram", class_name="w-full max-w-[560px] rounded", id="bond-diagram"), class_name=f"{PANEL} p-3 overflow-auto"),
+            class_name="flex flex-col gap-2",
+        ),
+    )
+    upload = rx.upload(
+        rx.el.div(rx.icon("file-up", class_name="h-3.5 w-3.5"), "Add OpenHTF records (.json)", class_name="flex items-center gap-1.5 text-xs text-slate-200"),
+        id="lab-upload",
+        accept={"application/json": [".json"]},
+        multiple=True,
+        max_files=5,
+        on_drop=LabState.handle_upload(rx.upload_files(upload_id="lab-upload")),
+        # rx.upload's own box is a big dashed area (its defaults): this one is button-sized.
+        border="1px dashed #475569",
+        padding="0 0.75rem",
+        class_name="cursor-pointer h-9 flex items-center rounded-md hover:bg-slate-800/60",
+    )
+    head = ["Measurement", "Spec", "Design, before silicon", "Real chips (in spec / measured)", "Low / mean / high", ""]
+    compare = rx.cond(
+        LabState.compare.length() > 0,
+        rx.el.div(
+            rx.el.table(
+                rx.el.thead(rx.el.tr(*[rx.el.th(h, class_name="px-2 py-1.5 text-left font-semibold") for h in head], class_name="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800")),
+                rx.el.tbody(rx.foreach(LabState.compare, lambda c: rx.el.tr(
+                    rx.el.td(rx.el.code(c.name, class_name="text-slate-100"), rx.el.span(" ", c.unit, class_name="text-slate-500"), class_name="px-2 py-2"),
+                    rx.el.td(c.spec, class_name="px-2 text-slate-300"),
+                    rx.el.td(rx.el.span(c.pre, class_name="text-slate-100"), rx.cond(c.source != "", rx.el.div(c.source, class_name="text-[10px] text-slate-500")), class_name="px-2"),
+                    rx.el.td(c.passed, " / ", c.chips, rx.cond(c.simulated > 0, rx.el.div("+", c.simulated, " simulated, left out", class_name="text-[10px] text-amber-300")), class_name="px-2 text-slate-300"),
+                    rx.el.td(c.spread, class_name="px-2 text-slate-300 font-mono"),
+                    rx.el.td(rx.match(
+                        c.verdict,
+                        ("in spec", rx.el.span("in spec", class_name="text-emerald-300")),
+                        ("out of spec", rx.el.span("out of spec", class_name="text-rose-300")),
+                        rx.el.span("not measured", class_name="text-slate-500"),
+                    ), class_name="px-2"),
+                    custom_attrs={"data-measure": c.name, "data-verdict": c.verdict},
+                    class_name="border-b border-slate-800/60 text-xs",
+                ))),
+                id="lab-compare",
+                class_name="w-full",
+            ),
+            class_name=f"{PANEL} overflow-x-auto",
+        ),
+        empty("gauge", "No spec yet", "lab/spec.csv says what to measure and what the design predicts."),
+    )
+    return rx.el.div(
+        rx.el.div(
+            section_title("Lab", "The package plan, and measurements of real chips beside what the design said before silicon, never mixed."),
+            rx.el.div(
+                flow_button("package_check", "Check the package plan", "package-check"),
+                upload,
+                rx.el.button(rx.icon("refresh-cw", class_name="h-3.5 w-3.5"), "Refresh", on_click=LabState.load, class_name=BTN_OUTLINE),
+                class_name="flex flex-wrap gap-2",
+            ),
+            class_name="flex flex-wrap items-end justify-between gap-3",
+        ),
+        rx.el.div(
+            two_columns(
+                rx.el.div(rx.el.span("Package plan checks", class_name=f"{LABEL} px-2"), runs_list("lab"), class_name="flex flex-col gap-2"),
+                run_details(bond),
+            ),
+            class_name="flex flex-col md:h-[600px] shrink-0",
+        ),
+        rx.el.div(
+            rx.el.span("Real chips against the design", class_name=LABEL),
+            compare,
+            rx.el.p(
+                "Records come from OpenHTF tests on a bench: drop their JSON here, or let the bench computer send them (lab/bench_test.py in the Heartbeat template, with an API token). A record marked simulated measured nothing and is left out of the comparison.",
+                class_name="text-xs text-slate-500",
+            ),
+            rx.el.span("Test records", class_name=LABEL),
+            rx.cond(
+                LabState.results.length() > 0,
+                rx.el.div(rx.foreach(LabState.results, lab_record), id="lab-records", class_name="flex flex-col gap-2"),
+                empty("microscope", "No test records yet", "They come from tests of real chips."),
+            ),
+            class_name="flex flex-col gap-3",
+        ),
+        on_mount=LabState.load,
+        id="lab-view",
+        class_name="flex flex-col gap-4 p-3 md:p-5 h-full overflow-y-auto",
     )
 
 
@@ -234,11 +356,14 @@ def settings_view() -> rx.Component:
             field("sdc", "Timing constraints (.sdc)"),
             field("clock_port", "Clock port"),
             field("clock_period_ns", "Clock period (ns)"),
-            field("pdk", "PDK", "skywater130, gf180, ihp130 (for Build ASIC)"),
-            field("fpga_device", "FPGA device", "e.g. up5k, hx8k"),
-            field("fpga_package", "FPGA package", "e.g. sg48"),
-            field("pcf", "FPGA pin file (.pcf)"),
+            field("pdk", "PDK", "skywater130, gf180, ihp130 (Build ASIC, Xschem, CACE)"),
+            field("fpga_family", "FPGA family", "ice40, ecp5 or gowin (which Build FPGA)"),
+            field("fpga_device", "FPGA device", "e.g. up5k (iCE40), 85k (ECP5), GW1NR-LV9QN88PC6/I5"),
+            field("fpga_package", "FPGA package", "e.g. sg48 (iCE40), CABGA381 (ECP5)"),
+            field("fpga_pins", "FPGA pin file", ".pcf (iCE40), .lpf (ECP5) or .cst (Gowin)"),
             field("spice", "SPICE deck"),
+            field("schematic_tb", "Xschem testbench (.sch)", "What Xschem simulation netlists and simulates"),
+            field("cace", "CACE datasheet (.yaml)", "The specs Corners (CACE) checks at every corner"),
             class_name="grid sm:grid-cols-2 gap-3",
         ),
         rx.el.div(rx.el.button("Save settings", on_click=SettingsState.save, disabled=~IdeState.can_edit, id="save-settings", class_name=BTN_PRIMARY), class_name="flex"),

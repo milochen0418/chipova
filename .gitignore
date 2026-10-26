@@ -24,3 +24,6 @@ testcases/**/output/
 
 # Poetry virtualenv (kept in-project for AI agent / IDE access)
 .venv/
+
+# CI output (scripts/ci.sh)
+ci-output/

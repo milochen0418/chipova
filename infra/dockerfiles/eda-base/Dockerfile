@@ -1,4 +1,4 @@
-# Chipova's small EDA image: lint, simulation, synthesis, iCE40 FPGA and SPICE.
+# Chipova's small EDA image: lint, simulation, synthesis, FPGA (iCE40, ECP5, Gowin) and SPICE.
 #
 # Debian 13 (trixie) packages, native on amd64 and arm64. Pinned by digest so the same Dockerfile
 # builds the same tools; each run still records this image's own digest and the tools' versions.
@@ -18,7 +18,8 @@ RUN set -eux; \
     fi; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        iverilog verilator yosys nextpnr-ice40 fpga-icestorm ngspice graphviz \
+        iverilog verilator yosys nextpnr-ice40 fpga-icestorm nextpnr-ecp5 fpga-trellis nextpnr-gowin python3-apycula \
+        ngspice graphviz \
         python3 make g++ ca-certificates; \
     rm -rf /var/lib/apt/lists/*; \
     mv /tmp/debian.sources "$src"; \

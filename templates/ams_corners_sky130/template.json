@@ -1,0 +1,6 @@
+{
+  "title": "Inverter across corners (analog, SKY130)",
+  "kind": "ams",
+  "description": "A CMOS inverter drawn in Xschem with SkyWater SKY130's 1.8 V transistors, and its datasheet: CACE simulates the delays, switching threshold and noise margins at 5 process corners, 3 supplies and 3 temperatures, and checks them against their limits.",
+  "order": 7
+}

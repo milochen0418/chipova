@@ -10,7 +10,7 @@ import reflex as rx
 
 from chipova import ids
 from chipova.domain.machines import InvalidTransition
-from chipova.jobs import engine, flows
+from chipova.jobs import engine, flows, flows_chip
 from chipova.services import artifacts, projects, releases, revisions, signoff
 from chipova.states.ide import IdeState
 from chipova.states.room import note, push_later
@@ -129,7 +129,14 @@ class SignoffState(rx.State):
         actor = await self._actor()
         started, problems = [], []
         asic = next((r for r in engine.runs_of(ide.project_id, limit=200, flow_id="asic_sc", revision_id=self.revision) if r.status.value == "SUCCEEDED"), None)
-        for flow_id in ("rtl_lint", "rtl_sim", "signoff_drc", "signoff_lvs"):
+        rev = revisions.get(ide.project_id, self.revision)
+        has_plan = rev is not None and set(flows.PACKAGE_FILES) <= {e["path"] for e in rev.files}
+        is_chip = rev is not None and set(flows_chip.MARKERS) <= {e["path"] for e in rev.files}
+        # The layout's checks are for chips, not for an FPGA project.
+        kind = projects.must(ide.project_id).kind.value
+        layout = kind in ("digital_asic", "ams")
+        for flow_id in ("rtl_lint", "rtl_sim", *(("signoff_drc", "signoff_lvs", "signoff_openroad") if layout else ()), *(("ams_cace",) if kind == "ams" else ()),
+                        *(("package_check",) if has_plan else ()), *(("fullchip_ihp",) if is_chip else ())):
             f = flows.get(flow_id)
             if f is None:
                 continue

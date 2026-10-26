@@ -1,0 +1,6 @@
+{
+  "title": "Analog/mixed-signal chip (IHP SG13G2, full chip)",
+  "kind": "ams",
+  "description": "JKU's IHP SG13G2 chip template: a counter (digital) and an inverter (analog) macro in a 32-pad padframe with a seal ring. Full chip builds the pads, logos and macros, assembles the chip with LibreLane and checks it; the rest of the template (IO cells, layouts, scripts) comes with the IIC-OSIC-TOOLS image.",
+  "order": 9
+}

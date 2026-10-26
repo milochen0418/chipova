@@ -155,12 +155,12 @@ def run_summary(r: Run) -> str:
         return ""
     if r.flow_id == "synth_yosys" and s.get("cells") is not None:
         return f"{s['cells']} cells"
-    if r.flow_id == "fpga_ice40":
+    if r.flow_id.startswith("fpga_"):
         fmax = s.get("fmax") or {}
         if fmax:
             best = min(v["achieved_mhz"] for v in fmax.values())
             return f"Fmax {best:.1f} MHz"
-    if r.flow_id == "ams_ngspice":
+    if r.flow_id in ("ams_ngspice", "ams_xschem"):
         m = s.get("measures") or {}
         if m:
             k, v = next(iter(m.items()))

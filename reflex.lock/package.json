@@ -12,15 +12,19 @@
     "isbot": "5.2.2",
     "lucide-react": "1.26.0",
     "mergician": "v2.0.2",
+    "monaco-editor": "0.55.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-dropzone": "17.0.0",
     "react-error-boundary": "6.1.6",
     "react-helmet": "6.1.0",
     "react-router": "8.4.0",
     "recharts": "3.10.1",
     "socket.io-client": "4.8.4",
     "sonner": "2.0.8",
-    "universal-cookie": "8.1.2"
+    "universal-cookie": "8.1.2",
+    "y-websocket": "2.0.4",
+    "yjs": "13.6.18"
   },
   "devDependencies": {
     "@emotion/react": "11.14.0",

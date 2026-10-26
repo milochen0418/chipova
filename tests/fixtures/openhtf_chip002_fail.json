@@ -1,0 +1,236 @@
+{
+ "dut_id": "CHIP-002",
+ "start_time_millis": 1793016709052,
+ "end_time_millis": 1793016709053,
+ "outcome": "FAIL",
+ "outcome_details": [],
+ "marginal": null,
+ "metadata": {
+  "test_name": "heartbeat_bench",
+  "station_id": "bench-1",
+  "config": {
+   "attachments_directory": null,
+   "plug_teardown_timeout_s": 0,
+   "allow_unset_measurements": false,
+   "station_id": "bench-1",
+   "cancel_timeout_s": 2,
+   "stop_on_first_failure": false,
+   "capture_source": false
+  }
+ },
+ "phases": [
+  {
+   "measurements": {},
+   "options": {
+    "name": null,
+    "timeout_s": null,
+    "run_if": null,
+    "requires_state": false,
+    "force_repeat": false,
+    "repeat_on_measurement_fail": false,
+    "repeat_on_timeout": false,
+    "repeat_limit": null,
+    "run_under_pdb": false,
+    "phase_name_case": "KEEP",
+    "stop_on_measurement_fail": false
+   },
+   "diagnosers": [],
+   "subtest_name": null,
+   "start_time_millis": 1793016709052,
+   "end_time_millis": 1793016709052,
+   "attachments": {},
+   "diagnosis_results": [],
+   "failure_diagnosis_results": [],
+   "result": {
+    "phase_result": "CONTINUE"
+   },
+   "outcome": "PASS",
+   "marginal": false,
+   "descriptor_id": 4322846960,
+   "name": "trigger_phase",
+   "codeinfo": {
+    "name": "",
+    "docstring": null,
+    "sourcecode": ""
+   }
+  },
+  {
+   "measurements": {
+    "pulse_period_us": {
+     "name": "pulse_period_us",
+     "outcome": "FAIL",
+     "validators": [
+      "2.5 <= x <= 2.62"
+     ],
+     "units": {
+      "name": "microsecond",
+      "code": "B98",
+      "suffix": "\u00b5s"
+     },
+     "measured_value": 2.71
+    },
+    "pulse_width_ns": {
+     "name": "pulse_width_ns",
+     "outcome": "PASS",
+     "validators": [
+      "9 <= x <= 11"
+     ],
+     "units": {
+      "name": "nanosecond",
+      "code": "C47",
+      "suffix": "ns"
+     },
+     "measured_value": 10.4
+    }
+   },
+   "options": {
+    "name": null,
+    "timeout_s": null,
+    "run_if": null,
+    "requires_state": false,
+    "force_repeat": false,
+    "repeat_on_measurement_fail": false,
+    "repeat_on_timeout": false,
+    "repeat_limit": null,
+    "run_under_pdb": false,
+    "phase_name_case": "KEEP",
+    "stop_on_measurement_fail": false
+   },
+   "diagnosers": [],
+   "subtest_name": null,
+   "start_time_millis": 1793016709052,
+   "end_time_millis": 1793016709052,
+   "attachments": {},
+   "diagnosis_results": [],
+   "failure_diagnosis_results": [],
+   "result": {
+    "phase_result": "CONTINUE"
+   },
+   "outcome": "FAIL",
+   "marginal": null,
+   "descriptor_id": 4322847184,
+   "name": "heartbeat",
+   "codeinfo": {
+    "name": "",
+    "docstring": null,
+    "sourcecode": ""
+   }
+  }
+ ],
+ "subtests": [],
+ "branches": [],
+ "diagnosers": [],
+ "diagnoses": [],
+ "log_records": [
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052.phase_executor",
+   "source": "phase_executor.py",
+   "lineno": 332,
+   "timestamp_millis": 1793016709052,
+   "message": "Executing phase trigger_phase (from trigger_phase at test_descriptor.py:318)"
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052.phase_executor_thread",
+   "source": "threads.py",
+   "lineno": 116,
+   "timestamp_millis": 1793016709052,
+   "message": "Thread finished: <PhaseExecutorThread: (trigger_phase)>"
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052.phase.trigger_phase",
+   "source": "test_state.py",
+   "lineno": 839,
+   "timestamp_millis": 1793016709052,
+   "message": "Phase outcome of trigger_phase is PASS."
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052.phase_executor",
+   "source": "phase_executor.py",
+   "lineno": 362,
+   "timestamp_millis": 1793016709052,
+   "message": "Phase trigger_phase finished with result <PhaseResult.CONTINUE: 'CONTINUE'>"
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052",
+   "source": "test_executor.py",
+   "lineno": 346,
+   "timestamp_millis": 1793016709052,
+   "message": "Executing phase heartbeat (from heartbeat at make_fixture.py:10)"
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052.phase_executor",
+   "source": "phase_executor.py",
+   "lineno": 332,
+   "timestamp_millis": 1793016709052,
+   "message": "Executing phase heartbeat (from heartbeat at make_fixture.py:10)"
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052.phase_executor_thread",
+   "source": "threads.py",
+   "lineno": 116,
+   "timestamp_millis": 1793016709052,
+   "message": "Thread finished: <PhaseExecutorThread: (heartbeat)>"
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052.phase.heartbeat",
+   "source": "test_state.py",
+   "lineno": 827,
+   "timestamp_millis": 1793016709052,
+   "message": "Phase outcome of heartbeat is FAIL due to measurement outcome."
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052.phase_executor",
+   "source": "phase_executor.py",
+   "lineno": 362,
+   "timestamp_millis": 1793016709052,
+   "message": "Phase heartbeat finished with result <PhaseResult.CONTINUE: 'CONTINUE'>"
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.plugs",
+   "source": "__init__.py",
+   "lineno": 358,
+   "timestamp_millis": 1793016709053,
+   "message": "Tearing down all plugs."
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.test_record.54643:e77480b9b4ca4c75:5d7c6b4725964b9e:1793016709052",
+   "source": "test_state.py",
+   "lineno": 505,
+   "timestamp_millis": 1793016709053,
+   "message": "Finishing test execution normally with outcome FAIL."
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.util.threads",
+   "source": "threads.py",
+   "lineno": 116,
+   "timestamp_millis": 1793016709053,
+   "message": "Thread finished: TestExecutorThread"
+  },
+  {
+   "level": 10,
+   "logger_name": "openhtf.core.test_descriptor",
+   "source": "test_descriptor.py",
+   "lineno": 359,
+   "timestamp_millis": 1793016709053,
+   "message": "Test completed for heartbeat_bench, outputting now."
+  }
+ ],
+ "station_id": "bench-1",
+ "code_info": {
+  "name": "",
+  "docstring": null,
+  "sourcecode": ""
+ }
+}

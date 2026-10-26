@@ -25,10 +25,14 @@ _FIELDS = {
     ("sim", "testbench"): "testbench",
     ("sim", "sources"): "sim",
     ("asic", "pdk"): "pdk",
+    ("fpga", "family"): "fpga_family",
     ("fpga", "device"): "fpga_device",
     ("fpga", "package"): "fpga_package",
+    ("fpga", "pins"): "fpga_pins",
     ("fpga", "pcf"): "pcf",
     ("ams", "spice"): "spice",
+    ("ams", "cace"): "cace",
+    ("ams", "testbench"): "schematic_tb",
 }
 
 _HEADER = """\

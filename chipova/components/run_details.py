@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import reflex as rx
 
-from chipova.components.common import BTN, BTN_OUTLINE, LABEL, PANEL, empty, kv, status_badge
+from chipova.components.common import BTN, BTN_OUTLINE, INPUT, LABEL, PANEL, ago, empty, kv, status_badge
 from chipova.components.links import backend_url
+from chipova.services.boards import HELPER_PATH
+from chipova.states.boards_state import BoardState
 from chipova.states.ide import IdeState
 from chipova.states.room import ProjectRoom
 from chipova.states.runs_state import RunState
@@ -98,6 +100,83 @@ def facts_grid() -> rx.Component:
     )
 
 
+def board_jobs() -> rx.Component:
+    """The boards asked to be programmed with this run's bitstream, and how it went."""
+    return rx.cond(
+        RunState.board_jobs.length() > 0,
+        rx.el.div(
+            rx.el.span("Boards", class_name=LABEL),
+            rx.foreach(
+                RunState.board_jobs,
+                lambda j: rx.el.details(
+                    rx.el.summary(
+                        status_badge(j.status, small=True),
+                        rx.el.code(j.board, class_name="text-xs text-slate-200"),
+                        rx.el.span("through ", j.helper, " · ", j.by, " · ", ago(j.at), class_name="text-xs text-slate-500"),
+                        class_name="flex items-center gap-2 cursor-pointer",
+                    ),
+                    rx.cond(j.log != "", rx.el.pre(j.log, class_name="mt-1 p-2 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto")),
+                    custom_attrs={"data-board-job": j.id, "data-board-status": j.status},
+                ),
+            ),
+            class_name="flex flex-col gap-1",
+        ),
+    )
+
+
+def program_dialog() -> rx.Component:
+    helper_cmd = rx.el.code(
+        "python3 board_helper.py --url ", backend_url("/"), " --token <your API token> --name \"My bench\"",
+        class_name="block p-2 rounded bg-slate-950 border border-slate-800 text-[11px] text-teal-200 break-all",
+    )
+    no_helper = rx.el.div(
+        rx.el.p("No board helper of yours is running. Start it on the computer the board is plugged into:", class_name="text-sm text-slate-300"),
+        rx.el.ol(
+            rx.el.li("Install openFPGALoader (macOS: brew install openfpgaloader; Debian/Ubuntu: sudo apt install openfpgaloader)."),
+            rx.el.li("Make an API token (Agents page), and ", rx.el.a("download the helper", href=backend_url(HELPER_PATH), custom_attrs={"download": "board_helper.py"}, class_name="text-teal-300 underline"), "."),
+            rx.el.li("Run it:", helper_cmd),
+            class_name="list-decimal pl-5 text-xs text-slate-400 flex flex-col gap-1",
+        ),
+        rx.el.button("Look again", on_click=BoardState.look_again, id="look-again", class_name=BTN_OUTLINE),
+        class_name="flex flex-col gap-2 mt-3",
+    )
+    choose = rx.el.div(
+        rx.el.label(
+            rx.el.span("Board helper", class_name=LABEL),
+            rx.el.select(
+                rx.foreach(BoardState.helpers, lambda h: rx.cond(h.online, rx.el.option(h.name, value=h.id))),
+                value=BoardState.helper_id, on_change=BoardState.set_helper, id="board-helper", class_name=f"{INPUT} w-full",
+            ),
+            class_name="flex flex-col gap-1",
+        ),
+        rx.foreach(BoardState.helpers, lambda h: rx.cond(h.online & (h.id == BoardState.helper_id) & (h.boards != ""), rx.el.p("On its USB: ", h.boards, class_name="text-[11px] text-slate-500 break-all"))),
+        rx.el.label(
+            rx.el.span("Board (openFPGALoader's name for it)", class_name=LABEL),
+            rx.el.input(value=BoardState.board, on_change=BoardState.set_board, list="board-names", id="board-name", class_name=f"{INPUT} w-full font-mono"),
+            rx.el.datalist(rx.foreach(BoardState.suggestions, lambda b: rx.el.option(value=b)), id="board-names"),
+            class_name="flex flex-col gap-1",
+        ),
+        class_name="flex flex-col gap-3 mt-3",
+    )
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.dialog.title("Program a board"),
+            rx.dialog.description(
+                "Your board helper writes this run's bitstream to the board plugged into its computer, after checking it against the SHA-256 Chipova recorded. Only your own helpers take your work.",
+                size="2",
+            ),
+            rx.cond(BoardState.helper_id != "", choose, no_helper),
+            rx.el.div(
+                rx.button("Cancel", variant="soft", color_scheme="gray", on_click=BoardState.close),
+                rx.button("Program", color_scheme="teal", on_click=BoardState.program, disabled=BoardState.helper_id == "", id="program-board"),
+                class_name="flex justify-end gap-2 mt-4",
+            ),
+            max_width="560px",
+        ),
+        open=BoardState.open,
+    )
+
+
 def run_header() -> rx.Component:
     return rx.el.div(
         rx.el.div(
@@ -120,8 +199,14 @@ def run_header() -> rx.Component:
             rx.cond(RunState.manifest != "", rx.el.a(rx.icon("file-json", class_name="h-3.5 w-3.5"), "Manifest", href=backend_url(RunState.manifest), id="manifest-link", custom_attrs={"download": ""}, class_name=BTN_OUTLINE)),
             rx.el.button(rx.icon("rotate-ccw", class_name="h-3.5 w-3.5"), "Run again", on_click=RunState.rerun, disabled=~IdeState.can_run, title="The same flow, parameters and snapshot", class_name=BTN_OUTLINE),
             rx.el.button(rx.icon("terminal", class_name="h-3.5 w-3.5"), "Output", on_click=[IdeState.set_view("code"), IdeState.set_bottom("output")], class_name=BTN_OUTLINE),
-            class_name="flex items-center gap-2",
+            rx.cond(
+                RunState.flow.startswith("fpga_") & (RunState.status == "SUCCEEDED"),
+                rx.el.button(rx.icon("usb", class_name="h-3.5 w-3.5"), "Program a board…", on_click=BoardState.ask, disabled=~IdeState.can_run, id="program-board-open", class_name=BTN_OUTLINE),
+            ),
+            class_name="flex items-center gap-2 flex-wrap",
         ),
+        board_jobs(),
+        program_dialog(),
         class_name="flex flex-col gap-2",
     )
 
@@ -223,7 +308,8 @@ def flow_button(flow_id: str, title: str, icon: str) -> rx.Component:
 
 def two_columns(left: rx.Component, right: rx.Component) -> rx.Component:
     return rx.el.div(
-        rx.el.div(left, class_name=f"{PANEL} p-2 w-72 shrink-0 overflow-y-auto"),
-        rx.el.div(right, class_name="flex-1 min-w-0 overflow-y-auto"),
-        class_name="flex gap-4 flex-1 min-h-0",
+        # Side by side; stacked on a phone.
+        rx.el.div(left, class_name=f"{PANEL} p-2 w-full md:w-72 max-h-64 md:max-h-none shrink-0 overflow-y-auto"),
+        rx.el.div(right, class_name="flex-1 min-w-0 md:overflow-y-auto"),
+        class_name="flex flex-col md:flex-row gap-4 md:flex-1 md:min-h-0",
     )

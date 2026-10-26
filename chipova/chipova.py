@@ -23,13 +23,15 @@ from chipova.agents import ai_tools
 from chipova.components.admin import admin_page
 from chipova.components.code_view import code_view
 from chipova.components.home import home_page
+from chipova.components import offline
 from chipova.components.layout_view import layout_view
-from chipova.components.sections import agents_view, implement_view, settings_view, verify_view
+from chipova.components.offline import editor_libraries
+from chipova.components.sections import agents_view, implement_view, lab_view, settings_view, verify_view
 from chipova.components.signoff_view import release_view, signoff_view
 from chipova.components.together import BYE_PATH, call_keepalive
 from chipova.components.workspace import workspace
 from chipova.jobs import engine, flows_asic, layout
-from chipova.services import api, artifacts, collab, presence, projects, proposals
+from chipova.services import api, artifacts, boards, collab, desktops, presence, projects, proposals
 from chipova.services.call import CALLS_ENABLED
 from chipova.states.admin_state import AdminState
 from chipova.states.home_state import HomeState
@@ -45,16 +47,17 @@ SWEEP_EVERY = 60.0
 
 
 def project_page() -> rx.Component:
-    return workspace({
-        "code": code_view(),
-        "verify": verify_view(),
-        "implement": implement_view(),
-        "layout": layout_view(),
-        "signoff": signoff_view(),
-        "release": release_view(),
-        "agents": agents_view(),
-        "settings": settings_view(),
-    })
+    return rx.fragment(editor_libraries(), workspace({
+        "code": code_view,
+        "verify": verify_view,
+        "implement": implement_view,
+        "layout": layout_view,
+        "signoff": signoff_view,
+        "release": release_view,
+        "lab": lab_view,
+        "agents": agents_view,
+        "settings": settings_view,
+    }))
 
 
 async def bye(request: Request) -> Response:
@@ -77,6 +80,7 @@ async def _sweep() -> None:
         try:
             collab.sweep()
             proposals.expire_old()
+            await asyncio.to_thread(desktops.sweep)
         except Exception:  # noqa: BLE001
             logger.exception("The sweep failed")
 
@@ -86,6 +90,7 @@ async def lifespan():
     """Starts the run queue (following runs a restart left running); at shutdown saves what
     waits to be saved and stops the layout renderer (runs go on in their containers)."""
     await engine.start()
+    await asyncio.to_thread(desktops.recover)
     sweeper = asyncio.create_task(_sweep())
     try:
         yield
@@ -151,6 +156,9 @@ ai_tools.activity = _ai_activity
 flows_asic.register()
 
 collab.register_routes(app)
+offline.register_routes(app)
+boards.register_routes(app)
+desktops.register_routes(app)
 artifacts.register_routes(app)
 api.register_routes(app)
 app._api.add_route(BYE_PATH, bye, methods=["POST"])

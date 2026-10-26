@@ -49,6 +49,9 @@ class Limits:
     memory_mb: int = 2048
     pids: int = 1024
     timeout: int = 600
+    # Pin the run to that many CPUs too: tools that size their parallelism by the CPUs they see
+    # (nproc) would otherwise start one process per host CPU within the run's CPU and memory limits.
+    pin_cpus: bool = False
 
 
 _client: docker.DockerClient | None = None
@@ -160,6 +163,13 @@ def workspace_tar(src_tar: bytes, job: dict[str, bytes], inputs: dict[str, Path]
 # ------------------------------------------------------------ the container
 
 
+def _cpuset(c: docker.DockerClient, cpus: float) -> str:
+    """The host's last ``cpus`` CPUs, as Docker's --cpuset-cpus wants them."""
+    total = int(c.info().get("NCPU") or 1)
+    n = max(1, min(total, int(cpus)))
+    return f"{total - n}-{total - 1}"
+
+
 def create(run_id: str, project_id: str, image: str, limits: Limits, workspace: bytes, env: dict[str, str] | None = None):
     """Makes the job's container with its workspace in it (not started yet)."""
     c = client()
@@ -181,6 +191,7 @@ def create(run_id: str, project_id: str, image: str, limits: Limits, workspace: 
         cap_drop=["ALL"],
         security_opt=["no-new-privileges"],
         nano_cpus=int(limits.cpus * 1e9),
+        cpuset_cpus=_cpuset(c, limits.cpus) if limits.pin_cpus else None,
         mem_limit=f"{limits.memory_mb}m",
         memswap_limit=f"{limits.memory_mb}m",
         pids_limit=limits.pids,

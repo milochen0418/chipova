@@ -1,0 +1,6 @@
+{
+  "title": "Inverter across corners (analog, IHP SG13G2)",
+  "kind": "ams",
+  "description": "A CMOS inverter drawn in Xschem with IHP SG13G2's 1.2 V transistors, and its datasheet: CACE simulates the delays, switching threshold and noise margins at 5 process corners, 3 supplies and 3 temperatures, and checks them against their limits.",
+  "order": 8
+}

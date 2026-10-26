@@ -40,6 +40,10 @@ STATUS_STYLE = {
     "DRAFT": ("bg-slate-600/20 text-slate-300 border-slate-600/40", "Draft"),
     "IN_REVIEW": ("bg-sky-500/15 text-sky-300 border-sky-500/30", "In review"),
     "FOUNDRY_READY": ("bg-teal-500/15 text-teal-300 border-teal-500/30", "Foundry ready"),
+    # Board jobs
+    "SENT": ("bg-sky-500/15 text-sky-300 border-sky-500/30", "Sent to the helper"),
+    "PROGRAMMING": ("bg-sky-500/15 text-sky-300 border-sky-500/30 animate-pulse", "Programming"),
+    "DONE": ("bg-emerald-500/15 text-emerald-300 border-emerald-500/30", "Done"),
 }
 
 
