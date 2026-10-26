@@ -1,0 +1,6 @@
+{
+  "title": "Heartbeat (digital ASIC)",
+  "kind": "digital_asic",
+  "description": "A counter that pulses its output once every 2^N clocks, with a self-checking testbench and a clock constraint: lint, simulate, synthesize and take it to GDSII.",
+  "order": 1
+}

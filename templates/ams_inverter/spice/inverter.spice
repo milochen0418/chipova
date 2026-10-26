@@ -1,0 +1,24 @@
+* CMOS inverter: DC transfer curve, transient response and propagation delays.
+* Simple level-1 models, so it runs without a PDK; swap in a PDK's models for real numbers.
+
+.model nmos_l1 nmos level=1 vto=0.7 kp=110u gamma=0.4 lambda=0.04 phi=0.7
+.model pmos_l1 pmos level=1 vto=-0.7 kp=50u gamma=0.57 lambda=0.05 phi=0.8
+
+vdd vdd 0 1.8
+vin in 0 pulse(0 1.8 1n 0.1n 0.1n 4n 10n)
+mp out in vdd vdd pmos_l1 w=2u l=0.18u
+mn out in 0 0 nmos_l1 w=1u l=0.18u
+cl out 0 20f
+
+.control
+  set wr_singlescale
+  set wr_vecnames
+  dc vin 0 1.8 0.01
+  wrdata dc_transfer.csv v(out)
+  tran 0.01n 20n
+  wrdata transient.csv v(in) v(out)
+  meas tran tpd_hl trig v(in) val=0.9 rise=1 targ v(out) val=0.9 fall=1
+  meas tran tpd_lh trig v(in) val=0.9 fall=1 targ v(out) val=0.9 rise=1
+  quit
+.endc
+.end

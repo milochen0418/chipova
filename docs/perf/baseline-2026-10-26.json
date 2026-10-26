@@ -1,0 +1,73 @@
+{
+ "measured_at": "2026-10-26 17:11:10 +0800",
+ "machine": {
+  "platform": "macOS-15.3.1-arm64-arm-64bit",
+  "python": "3.11.14",
+  "cpus": 14,
+  "memory_gb": 24.0,
+  "docker": {
+   "server": "29.8.0",
+   "os": "Docker Desktop",
+   "cpus": 14,
+   "memory_gb": 14.1
+  }
+ },
+ "base_url": "http://127.0.0.1:3171",
+ "coedit_delay_ms": {
+  "n": 40,
+  "median": 3.0,
+  "p95": 5,
+  "min": 1,
+  "max": 7
+ },
+ "reconnect": {
+  "drops": 5,
+  "converged": 5,
+  "converge_ms": {
+   "n": 5,
+   "median": 273.9,
+   "p95": 276.8,
+   "min": 264.3,
+   "max": 276.8
+  },
+  "offline_s": 3
+ },
+ "queue": {
+  "runs": 6,
+  "flow": "rtl_lint",
+  "wait_ms": {
+   "n": 6,
+   "median": 1203.8,
+   "p95": 1376.5,
+   "min": 11.3,
+   "max": 1376.5
+  },
+  "run_ms": {
+   "n": 6,
+   "median": 224.0,
+   "p95": 1273.7,
+   "min": 209.0,
+   "max": 1273.7
+  },
+  "most_at_once": 2
+ },
+ "artifact_integrity": {
+  "artifacts": 3,
+  "sha256_match": 3
+ },
+ "fpga_twice": {
+  "same_snapshot": true,
+  "bitstream_identical": true,
+  "outputs_identical": [
+   "fpga/blinky.asc",
+   "fpga/blinky.bin",
+   "fpga/blinky.json",
+   "fpga/report.json"
+  ],
+  "outputs_differing": [],
+  "run_s": [
+   0.5,
+   0.5
+  ]
+ }
+}

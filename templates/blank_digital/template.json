@@ -1,0 +1,6 @@
+{
+  "title": "Blank digital design",
+  "kind": "digital_asic",
+  "description": "An empty top module and a testbench that says PASS: start your own design.",
+  "order": 4
+}

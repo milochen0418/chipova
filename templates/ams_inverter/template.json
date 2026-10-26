@@ -1,0 +1,6 @@
+{
+  "title": "CMOS inverter (analog)",
+  "kind": "ams",
+  "description": "A CMOS inverter as a SPICE deck with simple level-1 transistor models: its DC transfer curve, a transient response and the propagation delays, simulated with ngspice.",
+  "order": 3
+}

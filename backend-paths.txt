@@ -1,0 +1,7 @@
+# Extra URL paths that should be proxied to the backend port instead of the
+# frontend port (re_ddns nginx). One path per line; comments (#) and blank
+# lines are ignored.
+
+# Everything Chipova serves itself: the co-editing relay (/_chipova/yjs/<doc>),
+# artifact downloads, waveform and layout data, a closing tab's goodbye.
+/_chipova/

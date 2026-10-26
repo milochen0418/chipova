@@ -1,0 +1,5 @@
+# iCEBreaker v1.0: 12 MHz oscillator, the user button and the two LEDs beside it.
+set_io -nowarn CLK 35
+set_io -nowarn BTN_N 10
+set_io -nowarn LEDR_N 11
+set_io -nowarn LEDG_N 37

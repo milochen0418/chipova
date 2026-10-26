@@ -1,0 +1,6 @@
+{
+  "title": "Blinky (FPGA, iCEBreaker)",
+  "kind": "fpga",
+  "description": "An LED that blinks and a button that lights the other one, for the Lattice iCE40 UP5K on an iCEBreaker board: simulate, then place and route it to a bitstream.",
+  "order": 2
+}
