@@ -33,9 +33,6 @@ fi
 BASE_URL="${BASE_URL:-http://127.0.0.1:$FRONTEND_PORT}"
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:$BACKEND_PORT}"
 export BASE_URL BACKEND_URL OUTPUT_DIR
-# Screenshots written into testcases/*/output must not hot-reload the backend (a reload drops
-# every editing socket and the presence of everyone).
-export REFLEX_HOT_RELOAD_EXCLUDE_PATHS="$ROOT_DIR/testcases"
 export REFLEX_TELEMETRY_ENABLED=false
 # Sign-in cookies and AI tool tokens in the suites are signed with this (as re-ddns signs them).
 export DDNS_AUTH_SECRET="${DDNS_AUTH_SECRET:-chipova-test-secret-0123456789abcdef}"
@@ -45,6 +42,22 @@ if [[ -z "${CHIPOVA_HOME:-}" ]]; then
   export CHIPOVA_HOME="$OUTPUT_DIR/home"
   rm -rf "$CHIPOVA_HOME"
 fi
+# What the suite writes (screenshots, the server's data folder) must not hot-reload the backend:
+# a reload drops every editing socket and the events in flight. Reflex watches each top-level
+# entry of the checkout, so testcases/ is left out, and so is the entry holding the output or
+# the data folder when they are inside the checkout (CI's ci-output/).
+EXCLUDE="$ROOT_DIR/testcases"
+ROOT_REAL="$(cd "$ROOT_DIR" && pwd -P)"
+for dir in "$OUTPUT_DIR" "$CHIPOVA_HOME"; do
+  mkdir -p "$dir"
+  real="$(cd "$dir" && pwd -P)"
+  if [[ "$real" == "$ROOT_REAL"/* ]]; then
+    rel="${real#"$ROOT_REAL"/}"
+    top="$ROOT_REAL/${rel%%/*}"
+    [[ ":$EXCLUDE:" == *":$top:"* ]] || EXCLUDE="$EXCLUDE:$top"
+  fi
+done
+export REFLEX_HOT_RELOAD_EXCLUDE_PATHS="$EXCLUDE"
 
 REFLEX_LOG="$OUTPUT_DIR/reflex.log"
 TEST_LOG="$OUTPUT_DIR/test.log"
